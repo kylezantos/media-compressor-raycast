@@ -1,0 +1,73 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "media-compressor",
+  "title": "Media Compressor",
+  "description": "Compress images and videos with full control over quality, size, and codec settings.",
+  "icon": "extension-icon.png",
+  "author": "zantos",
+  "categories": ["Productivity", "System"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "compress",
+      "title": "Compress Media",
+      "description": "Compress selected images and videos with configurable settings",
+      "mode": "view"
+    },
+    {
+      "name": "compress-quick",
+      "title": "Quick Compress",
+      "description": "Compress selected files instantly with default settings",
+      "mode": "no-view"
+    },
+    {
+      "name": "compress-folder",
+      "title": "Compress Folder",
+      "description": "Compress all images in a folder and show results",
+      "mode": "view"
+    },
+    {
+      "name": "manage-watchers",
+      "title": "Manage Watch Folders",
+      "description": "Add or remove auto-compress folders for images",
+      "mode": "view"
+    },
+    {
+      "name": "install-tools",
+      "title": "Install Compression Tools",
+      "description": "Install image tools (pngquant, oxipng, jpegoptim) and video tools (FFmpeg)",
+      "mode": "no-view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "trashOriginals",
+      "title": "Trash Originals",
+      "description": "Default: move originals to Trash after compression (can be overridden per operation)",
+      "type": "checkbox",
+      "required": false,
+      "default": true,
+      "label": "Move originals to Trash"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.83.0",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"Error: no publish\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
