@@ -2,6 +2,17 @@
 
 A Raycast extension for compressing images and videos on macOS. Full control over quality, codec, resolution, and audio — or just hit a keyboard shortcut and let it handle everything.
 
+## Context
+
+Compression on macOS tends to be slow, locked inside a GUI app, or limited to images. Raycast's built-in image tools and most store extensions cover the basics — resize, strip metadata, maybe a quality slider — but a handful of common cases fall outside that:
+
+- Screen recordings, demo clips, and phone exports that need **video** compression
+- **Keyboard-first workflows** — select a file in Finder, hit a shortcut, done, no form to click through
+- **Fine-grained control** — picking a codec, CRF, target size %, resolution, or audio strategy
+- **Drop-a-file, auto-compress** behavior — a watch folder that handles things in the background
+
+This extension fills those gaps. Select files in Finder, hit **Quick Compress**, and they're done in the background with a native progress overlay — no Raycast window needed. Or open **Compress Media** when you want the full form with codec, CRF, target size %, resolution, and audio options.
+
 ## Commands
 
 | Command | Description |
@@ -63,11 +74,29 @@ Video compression runs through a compiled Swift binary that displays a floating 
 
 Add any folder as a watch target and new images are automatically compressed in the background using a macOS `launchd` LaunchAgent. Each folder can have its own quality preset. Activity is logged to `~/.config/media-compressor/watcher.log`.
 
+## Install
+
+> **Note:** This would be published to the official Raycast Store, but the store doesn't allow the watch folder feature (background `launchd` LaunchAgents), and losing it would gut a big part of what this extension is for. So it lives here instead.
+
+Install as a local development extension:
+
+```bash
+git clone https://github.com/kylezantos/media-compressor-raycast.git
+cd media-compressor-raycast
+npm install
+npm run dev
+```
+
+With `npm run dev` running, Raycast will import the extension automatically. You can stop the dev process once the extension appears in Raycast — it stays installed.
+
+Then run **Install Compression Tools** from Raycast to install the Homebrew dependencies (`pngquant`, `oxipng`, `jpegoptim`, `ffmpeg`) and compile the Swift progress overlay.
+
 ## Requirements
 
 - macOS
 - [Raycast](https://raycast.com)
 - [Homebrew](https://brew.sh)
+- Node.js (for the initial dev-mode install)
 
 Dependencies (installed via the **Install Compression Tools** command):
 - `pngquant`
