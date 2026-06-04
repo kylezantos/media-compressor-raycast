@@ -90,7 +90,10 @@ export default function CompressFolder() {
 
     const folderPath = values.folder?.[0];
     if (!folderPath) {
-      await showToast({ style: Toast.Style.Failure, title: "No folder selected" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "No folder selected",
+      });
       return;
     }
 
@@ -112,7 +115,10 @@ export default function CompressFolder() {
     }
 
     if (files.length === 0) {
-      await showToast({ style: Toast.Style.Failure, title: "No images found in folder" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "No images found in folder",
+      });
       setIsLoading(false);
       return;
     }
@@ -142,7 +148,11 @@ export default function CompressFolder() {
       isLoading={isLoading}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Compress Folder" icon={Icon.Download} onSubmit={handleSubmit} />
+          <Action.SubmitForm
+            title="Compress Folder"
+            icon={Icon.Download}
+            onSubmit={handleSubmit}
+          />
         </ActionPanel>
       }
     >
@@ -158,10 +168,22 @@ export default function CompressFolder() {
         title="Image Quality"
         defaultValue="high"
       >
-        <Form.Dropdown.Item value="lossless" title="Lossless — optimization only (5-30% smaller)" />
-        <Form.Dropdown.Item value="high" title="High — visually identical (40-60% smaller)" />
-        <Form.Dropdown.Item value="medium" title="Medium — good quality (50-70% smaller)" />
-        <Form.Dropdown.Item value="low" title="Low — max compression (60-80% smaller)" />
+        <Form.Dropdown.Item
+          value="lossless"
+          title="Lossless — optimization only (5-30% smaller)"
+        />
+        <Form.Dropdown.Item
+          value="high"
+          title="High — visually identical (40-60% smaller)"
+        />
+        <Form.Dropdown.Item
+          value="medium"
+          title="Medium — good quality (50-70% smaller)"
+        />
+        <Form.Dropdown.Item
+          value="low"
+          title="Low — max compression (60-80% smaller)"
+        />
       </Form.Dropdown>
       <Form.Checkbox
         id="trashOriginals"

@@ -4,14 +4,21 @@ import { join } from "path";
 import { showToast, Toast, environment } from "@raycast/api";
 import { CONFIG_DIR, OVERLAY_BIN } from "./constants";
 
-const SEARCH_PATHS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"];
+const SEARCH_PATHS = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+  "/bin",
+];
 const PATH = SEARCH_PATHS.join(":");
 export const ENV = { ...process.env, PATH };
 
 export function getToolPath(tool: string): string {
   if (tool === "compress-overlay") {
     if (existsSync(OVERLAY_BIN)) return OVERLAY_BIN;
-    throw new Error("Compression overlay not built. Run 'Install Compression Tools'.");
+    throw new Error(
+      "Compression overlay not built. Run 'Install Compression Tools'.",
+    );
   }
 
   for (const dir of SEARCH_PATHS) {
@@ -43,7 +50,9 @@ export function getMissingImageTools(): string[] {
 // ── Video Tools ──
 
 export function hasVideoTools(): boolean {
-  return isInstalled("ffmpeg") && isInstalled("ffprobe") && existsSync(OVERLAY_BIN);
+  return (
+    isInstalled("ffmpeg") && isInstalled("ffprobe") && existsSync(OVERLAY_BIN)
+  );
 }
 
 export function getMissingVideoTools(): string[] {

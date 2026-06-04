@@ -5,12 +5,29 @@ import { join } from "path";
 // ── File Extensions ──
 
 export const IMAGE_EXTENSIONS = new Set([
-  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".tiff", ".tif", ".bmp",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".tiff",
+  ".tif",
+  ".bmp",
 ]);
 
 export const VIDEO_EXTENSIONS = new Set([
-  ".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v", ".wmv", ".flv",
-  ".3gp", ".mts", ".m2ts", ".ts",
+  ".mp4",
+  ".mov",
+  ".mkv",
+  ".avi",
+  ".webm",
+  ".m4v",
+  ".wmv",
+  ".flv",
+  ".3gp",
+  ".mts",
+  ".m2ts",
+  ".ts",
 ]);
 
 // ── Image Types ──
@@ -32,9 +49,9 @@ export const IMAGE_QUALITY_SETTINGS: Record<
   { pngMin: number; pngMax: number; jpegMax: number }
 > = {
   lossless: { pngMin: 100, pngMax: 100, jpegMax: 100 },
-  high:     { pngMin: 85,  pngMax: 100, jpegMax: 90  },
-  medium:   { pngMin: 70,  pngMax: 90,  jpegMax: 80  },
-  low:      { pngMin: 50,  pngMax: 80,  jpegMax: 70  },
+  high: { pngMin: 85, pngMax: 100, jpegMax: 90 },
+  medium: { pngMin: 70, pngMax: 90, jpegMax: 80 },
+  low: { pngMin: 50, pngMax: 80, jpegMax: 70 },
 };
 
 // ── Video Types ──
@@ -89,7 +106,7 @@ export interface CompressConfig {
 export const CRF_VALUES: Record<Codec, Record<VideoQualityPreset, number>> = {
   h264: { lossless: 18, high: 23, medium: 28, low: 32 },
   h265: { lossless: 20, high: 24, medium: 28, low: 32 },
-  av1:  { lossless: 23, high: 30, medium: 38, low: 45 },
+  av1: { lossless: 23, high: 30, medium: 38, low: 45 },
 };
 
 export const CODEC_LIBS: Record<Codec, string> = {
@@ -101,13 +118,13 @@ export const CODEC_LIBS: Record<Codec, string> = {
 export const SPEED_PRESETS: Record<Codec, Record<Speed, string>> = {
   h264: { fast: "fast", balanced: "medium", quality: "slow" },
   h265: { fast: "fast", balanced: "medium", quality: "slow" },
-  av1:  { fast: "8", balanced: "6", quality: "4" },
+  av1: { fast: "8", balanced: "6", quality: "4" },
 };
 
 export const RESOLUTION_MAP: Record<string, { width: number }> = {
   "1080p": { width: 1920 },
-  "720p":  { width: 1280 },
-  "480p":  { width: 854 },
+  "720p": { width: 1280 },
+  "480p": { width: 854 },
 };
 
 // ── Preferences ──
@@ -127,7 +144,10 @@ export const WATCHERS_FILE = join(CONFIG_DIR, "watchers.json");
 export const OVERLAY_BIN = join(CONFIG_DIR, "compress-overlay");
 export const LAUNCH_AGENT_DIR = join(homedir(), "Library", "LaunchAgents");
 export const LAUNCH_AGENT_NAME = "com.mediacompressor.watcher";
-export const LAUNCH_AGENT_PLIST = join(LAUNCH_AGENT_DIR, `${LAUNCH_AGENT_NAME}.plist`);
+export const LAUNCH_AGENT_PLIST = join(
+  LAUNCH_AGENT_DIR,
+  `${LAUNCH_AGENT_NAME}.plist`,
+);
 export const XATTR_KEY = "com.mediacompressor.compressed";
 
 // ── Helpers ──

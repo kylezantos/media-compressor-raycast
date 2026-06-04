@@ -6,17 +6,27 @@ import { getToolPath, ENV } from "./tools";
 export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
   const ffprobe = getToolPath("ffprobe");
 
-  const output = execFileSync(ffprobe, [
-    "-v", "quiet",
-    "-print_format", "json",
-    "-show_format",
-    "-show_streams",
-    filePath,
-  ], { env: ENV, timeout: 30_000 }).toString();
+  const output = execFileSync(
+    ffprobe,
+    [
+      "-v",
+      "quiet",
+      "-print_format",
+      "json",
+      "-show_format",
+      "-show_streams",
+      filePath,
+    ],
+    { env: ENV, timeout: 30_000 },
+  ).toString();
 
   const data = JSON.parse(output);
-  const videoStream = data.streams?.find((s: { codec_type: string }) => s.codec_type === "video");
-  const audioStream = data.streams?.find((s: { codec_type: string }) => s.codec_type === "audio");
+  const videoStream = data.streams?.find(
+    (s: { codec_type: string }) => s.codec_type === "video",
+  );
+  const audioStream = data.streams?.find(
+    (s: { codec_type: string }) => s.codec_type === "audio",
+  );
   const format = data.format || {};
 
   const duration = parseFloat(format.duration || "0");

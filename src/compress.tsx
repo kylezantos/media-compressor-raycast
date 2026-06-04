@@ -38,8 +38,12 @@ export default function Compress() {
       try {
         const items = await getSelectedFinderItems();
         const paths = items.map((i) => i.path);
-        const imgs = paths.filter((p) => IMAGE_EXTENSIONS.has(extname(p).toLowerCase()));
-        const vids = paths.filter((p) => VIDEO_EXTENSIONS.has(extname(p).toLowerCase()));
+        const imgs = paths.filter((p) =>
+          IMAGE_EXTENSIONS.has(extname(p).toLowerCase()),
+        );
+        const vids = paths.filter((p) =>
+          VIDEO_EXTENSIONS.has(extname(p).toLowerCase()),
+        );
 
         if (imgs.length > 0 || vids.length > 0) {
           setFinderImages(imgs);
@@ -62,14 +66,20 @@ export default function Compress() {
   }, []);
 
   function handleFilesChange(paths: string[]) {
-    const imgs = paths.filter((p) => IMAGE_EXTENSIONS.has(extname(p).toLowerCase()));
-    const vids = paths.filter((p) => VIDEO_EXTENSIONS.has(extname(p).toLowerCase()));
+    const imgs = paths.filter((p) =>
+      IMAGE_EXTENSIONS.has(extname(p).toLowerCase()),
+    );
+    const vids = paths.filter((p) =>
+      VIDEO_EXTENSIONS.has(extname(p).toLowerCase()),
+    );
     const hasAny = imgs.length > 0 || vids.length > 0;
     setShowImageSection(imgs.length > 0 || !hasAny);
     setShowVideoSection(vids.length > 0 || !hasAny);
   }
 
-  async function handleSubmit(values: Record<string, string | string[] | boolean>) {
+  async function handleSubmit(
+    values: Record<string, string | string[] | boolean>,
+  ) {
     let images: string[];
     let videos: string[];
 
@@ -78,12 +88,19 @@ export default function Compress() {
       videos = finderVideos;
     } else {
       const allFiles = (values.files as string[]) || [];
-      images = allFiles.filter((p) => IMAGE_EXTENSIONS.has(extname(p).toLowerCase()));
-      videos = allFiles.filter((p) => VIDEO_EXTENSIONS.has(extname(p).toLowerCase()));
+      images = allFiles.filter((p) =>
+        IMAGE_EXTENSIONS.has(extname(p).toLowerCase()),
+      );
+      videos = allFiles.filter((p) =>
+        VIDEO_EXTENSIONS.has(extname(p).toLowerCase()),
+      );
     }
 
     if (images.length === 0 && videos.length === 0) {
-      await showToast({ style: Toast.Style.Failure, title: "No media files selected" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "No media files selected",
+      });
       return;
     }
 
@@ -117,7 +134,10 @@ export default function Compress() {
 
       if (videos.length === 0) {
         const parts: string[] = [];
-        if (compressed > 0) parts.push(`${compressed} compressed, saved ${formatBytes(totalSaved)}`);
+        if (compressed > 0)
+          parts.push(
+            `${compressed} compressed, saved ${formatBytes(totalSaved)}`,
+          );
         if (skipped > 0) parts.push(`${skipped} already optimal`);
         await showHUD(parts.join(" · ") || "Done");
         await popToRoot();
@@ -134,13 +154,21 @@ export default function Compress() {
 
       const videoOptions: VideoCompressOptions = {
         mode: (values.videoMode as VideoCompressOptions["mode"]) || "quality",
-        quality: (values.videoQuality as VideoCompressOptions["quality"]) || "high",
+        quality:
+          (values.videoQuality as VideoCompressOptions["quality"]) || "high",
         codec: (values.codec as VideoCompressOptions["codec"]) || "h265",
-        resolution: (values.resolution as VideoCompressOptions["resolution"]) || "original",
+        resolution:
+          (values.resolution as VideoCompressOptions["resolution"]) ||
+          "original",
         speed: (values.speed as VideoCompressOptions["speed"]) || "balanced",
-        audioMode: (values.audioMode as VideoCompressOptions["audioMode"]) || "smart",
-        targetPercent: values.targetPercent ? parseInt(values.targetPercent as string) : 50,
-        targetSizeMB: values.targetSizeMB ? parseFloat(values.targetSizeMB as string) : undefined,
+        audioMode:
+          (values.audioMode as VideoCompressOptions["audioMode"]) || "smart",
+        targetPercent: values.targetPercent
+          ? parseInt(values.targetPercent as string)
+          : 50,
+        targetSizeMB: values.targetSizeMB
+          ? parseFloat(values.targetSizeMB as string)
+          : undefined,
         trashOriginal: trashOriginals,
       };
 
@@ -159,8 +187,12 @@ export default function Compress() {
     }
 
     const parts: string[] = [];
-    if (images.length > 0) parts.push(`${images.length} image${images.length > 1 ? "s" : ""} done`);
-    if (videos.length > 0) parts.push(`${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`);
+    if (images.length > 0)
+      parts.push(`${images.length} image${images.length > 1 ? "s" : ""} done`);
+    if (videos.length > 0)
+      parts.push(
+        `${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`,
+      );
     await showHUD(parts.join(", "));
     await popToRoot();
   }
@@ -168,8 +200,14 @@ export default function Compress() {
   // Build selection summary
   const selectionSummary = (() => {
     const parts: string[] = [];
-    if (finderImages.length > 0) parts.push(`${finderImages.length} image${finderImages.length > 1 ? "s" : ""}`);
-    if (finderVideos.length > 0) parts.push(`${finderVideos.length} video${finderVideos.length > 1 ? "s" : ""}`);
+    if (finderImages.length > 0)
+      parts.push(
+        `${finderImages.length} image${finderImages.length > 1 ? "s" : ""}`,
+      );
+    if (finderVideos.length > 0)
+      parts.push(
+        `${finderVideos.length} video${finderVideos.length > 1 ? "s" : ""}`,
+      );
     return parts.join(", ");
   })();
 
@@ -212,9 +250,15 @@ export default function Compress() {
             defaultValue="high"
             info="Higher settings preserve more detail. 'High' is visually identical to the original for most images."
           >
-            <Form.Dropdown.Item value="lossless" title="Lossless (5-30% smaller)" />
+            <Form.Dropdown.Item
+              value="lossless"
+              title="Lossless (5-30% smaller)"
+            />
             <Form.Dropdown.Item value="high" title="High (40-60% smaller)" />
-            <Form.Dropdown.Item value="medium" title="Medium (50-70% smaller)" />
+            <Form.Dropdown.Item
+              value="medium"
+              title="Medium (50-70% smaller)"
+            />
             <Form.Dropdown.Item value="low" title="Low (60-80% smaller)" />
           </Form.Dropdown>
         </>
@@ -224,7 +268,12 @@ export default function Compress() {
       {showVideoSection && (
         <>
           <Form.Separator />
-          <Form.Dropdown id="videoMode" title="Compress By" value={videoMode} onChange={setVideoMode}>
+          <Form.Dropdown
+            id="videoMode"
+            title="Compress By"
+            value={videoMode}
+            onChange={setVideoMode}
+          >
             <Form.Dropdown.Item value="quality" title="Quality" />
             <Form.Dropdown.Item value="percent" title="Target Size (%)" />
             <Form.Dropdown.Item value="size" title="Target Size (MB)" />

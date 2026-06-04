@@ -23,9 +23,12 @@ function ensureTempDir(): void {
 
 function buildAudioArgs(mode: string, info: VideoInfo): string[] {
   switch (mode) {
-    case "copy":   return ["-c:a", "copy"];
-    case "aac128": return ["-c:a", "aac", "-b:a", "128k"];
-    case "aac192": return ["-c:a", "aac", "-b:a", "192k"];
+    case "copy":
+      return ["-c:a", "copy"];
+    case "aac128":
+      return ["-c:a", "aac", "-b:a", "128k"];
+    case "aac192":
+      return ["-c:a", "aac", "-b:a", "192k"];
     case "smart":
     default:
       if (info.audioCodec === "aac") return ["-c:a", "copy"];
@@ -56,7 +59,15 @@ function buildCRFPasses(
   args.push("-c:v", lib, "-crf", String(crf), "-preset", preset);
   // hvc1 tag required for Apple/QuickTime H.265 playback
   if (options.codec === "h265") args.push("-tag:v", "hvc1");
-  args.push(...audioArgs, "-movflags", "+faststart", "-progress", "pipe:1", "-y", outputPath);
+  args.push(
+    ...audioArgs,
+    "-movflags",
+    "+faststart",
+    "-progress",
+    "pipe:1",
+    "-y",
+    outputPath,
+  );
 
   return [{ args, label: "Compressing..." }];
 }
@@ -85,26 +96,62 @@ function buildTargetSizePasses(
 
   // AV1: single-pass with target bitrate
   if (options.codec === "av1") {
-    return [{
-      args: [
-        ...baseArgs, "-preset", preset,
-        "-c:a", "aac", "-b:a", `${audioBitrate}k`,
-        "-movflags", "+faststart",
-        "-progress", "pipe:1", "-y", outputPath,
-      ],
-      label: "Compressing...",
-    }];
+    return [
+      {
+        args: [
+          ...baseArgs,
+          "-preset",
+          preset,
+          "-c:a",
+          "aac",
+          "-b:a",
+          `${audioBitrate}k`,
+          "-movflags",
+          "+faststart",
+          "-progress",
+          "pipe:1",
+          "-y",
+          outputPath,
+        ],
+        label: "Compressing...",
+      },
+    ];
   }
 
   // H.264/H.265: two-pass
   baseArgs.push("-preset", preset, "-passlogfile", passLogFile);
   return [
     {
-      args: [...baseArgs, "-pass", "1", "-an", "-f", "mp4", "-progress", "pipe:1", "-y", "/dev/null"],
+      args: [
+        ...baseArgs,
+        "-pass",
+        "1",
+        "-an",
+        "-f",
+        "mp4",
+        "-progress",
+        "pipe:1",
+        "-y",
+        "/dev/null",
+      ],
       label: "Pass 1: Analyzing...",
     },
     {
-      args: [...baseArgs, "-pass", "2", "-c:a", "aac", "-b:a", `${audioBitrate}k`, "-movflags", "+faststart", "-progress", "pipe:1", "-y", outputPath],
+      args: [
+        ...baseArgs,
+        "-pass",
+        "2",
+        "-c:a",
+        "aac",
+        "-b:a",
+        `${audioBitrate}k`,
+        "-movflags",
+        "+faststart",
+        "-progress",
+        "pipe:1",
+        "-y",
+        outputPath,
+      ],
       label: "Pass 2: Compressing...",
     },
   ];
@@ -135,7 +182,9 @@ export async function launchVideoCompression(
   } else {
     let targetBytes: number;
     if (options.mode === "percent") {
-      targetBytes = Math.floor(info.size * ((options.targetPercent || 50) / 100));
+      targetBytes = Math.floor(
+        info.size * ((options.targetPercent || 50) / 100),
+      );
     } else {
       targetBytes = Math.floor((options.targetSizeMB || 25) * 1024 * 1024);
     }
