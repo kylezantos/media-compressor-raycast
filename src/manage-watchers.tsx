@@ -29,7 +29,10 @@ function AddWatcherForm({ onAdd }: { onAdd: () => void }) {
   async function handleSubmit(values: { folder: string[]; mode: string }) {
     const folderPath = values.folder?.[0];
     if (!folderPath) {
-      await showToast({ style: Toast.Style.Failure, title: "No folder selected" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "No folder selected",
+      });
       return;
     }
 
@@ -64,7 +67,11 @@ function AddWatcherForm({ onAdd }: { onAdd: () => void }) {
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Add Watch Folder" icon={Icon.Plus} onSubmit={handleSubmit} />
+          <Action.SubmitForm
+            title="Add Watch Folder"
+            icon={Icon.Plus}
+            onSubmit={handleSubmit}
+          />
         </ActionPanel>
       }
     >
@@ -105,7 +112,10 @@ export default function ManageWatchers() {
       await confirmAlert({
         title: "Remove Watch Folder?",
         message: `Stop watching ${path}?`,
-        primaryAction: { title: "Remove", style: Alert.ActionStyle.Destructive },
+        primaryAction: {
+          title: "Remove",
+          style: Alert.ActionStyle.Destructive,
+        },
       })
     ) {
       removeWatcher(path);
@@ -117,7 +127,10 @@ export default function ManageWatchers() {
   async function handleReinstallScript() {
     try {
       installWatchScript();
-      await showToast({ style: Toast.Style.Success, title: "Watch script updated" });
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Watch script updated",
+      });
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,

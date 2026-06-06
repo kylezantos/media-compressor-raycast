@@ -1,4 +1,9 @@
-import { showHUD, showToast, Toast, getSelectedFinderItems } from "@raycast/api";
+import {
+  showHUD,
+  showToast,
+  Toast,
+  getSelectedFinderItems,
+} from "@raycast/api";
 import { extname, basename } from "path";
 import {
   IMAGE_EXTENSIONS,
@@ -9,7 +14,12 @@ import {
 } from "./lib/constants";
 import { compressImage } from "./lib/image-compress";
 import { launchVideoCompression } from "./lib/video-compress";
-import { ensureImageTools, ensureVideoTools, hasImageTools, hasVideoTools } from "./lib/tools";
+import {
+  ensureImageTools,
+  ensureVideoTools,
+  hasImageTools,
+  hasVideoTools,
+} from "./lib/tools";
 
 export default async function CompressQuick() {
   const prefs = getPrefs();
@@ -22,8 +32,12 @@ export default async function CompressQuick() {
     return;
   }
 
-  const images = items.map((i) => i.path).filter((p) => IMAGE_EXTENSIONS.has(extname(p).toLowerCase()));
-  const videos = items.map((i) => i.path).filter((p) => VIDEO_EXTENSIONS.has(extname(p).toLowerCase()));
+  const images = items
+    .map((i) => i.path)
+    .filter((p) => IMAGE_EXTENSIONS.has(extname(p).toLowerCase()));
+  const videos = items
+    .map((i) => i.path)
+    .filter((p) => VIDEO_EXTENSIONS.has(extname(p).toLowerCase()));
 
   if (images.length === 0 && videos.length === 0) {
     await showHUD("No media files in selection");
@@ -60,7 +74,10 @@ export default async function CompressQuick() {
     }
 
     toast.hide();
-    if (compressed > 0) resultParts.push(`${compressed} images, saved ${formatBytes(totalSaved)}`);
+    if (compressed > 0)
+      resultParts.push(
+        `${compressed} images, saved ${formatBytes(totalSaved)}`,
+      );
     if (skipped > 0) resultParts.push(`${skipped} already optimal`);
   }
 
@@ -94,7 +111,9 @@ export default async function CompressQuick() {
       }
     }
 
-    resultParts.push(`${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`);
+    resultParts.push(
+      `${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`,
+    );
   }
 
   await showHUD(resultParts.join(" · ") || "Done");

@@ -35,7 +35,10 @@ export function saveWatchers(watchers: WatchedFolder[]): void {
   writeFileSync(WATCHERS_FILE, JSON.stringify(watchers, null, 2));
 }
 
-export function addWatcher(path: string, mode: ImageQualityPreset): WatchedFolder[] {
+export function addWatcher(
+  path: string,
+  mode: ImageQualityPreset,
+): WatchedFolder[] {
   const watchers = loadWatchers();
   if (watchers.some((w) => w.path === path)) return watchers;
   watchers.push({ path, mode, addedAt: new Date().toISOString() });
@@ -218,24 +221,39 @@ function updateLaunchAgent(watchers: WatchedFolder[]): void {
   installWatchScript();
 
   try {
-    execSync(`launchctl unload "${LAUNCH_AGENT_PLIST}" 2>/dev/null`, { stdio: "pipe" });
+    execSync(`launchctl unload "${LAUNCH_AGENT_PLIST}" 2>/dev/null`, {
+      stdio: "pipe",
+    });
   } catch {
     // might not exist yet
   }
 
-  if (!existsSync(LAUNCH_AGENT_DIR)) mkdirSync(LAUNCH_AGENT_DIR, { recursive: true });
+  if (!existsSync(LAUNCH_AGENT_DIR))
+    mkdirSync(LAUNCH_AGENT_DIR, { recursive: true });
   writeFileSync(LAUNCH_AGENT_PLIST, generatePlist(watchers));
   execSync(`launchctl load "${LAUNCH_AGENT_PLIST}"`, { stdio: "pipe" });
 }
 
 function uninstallLaunchAgent(): void {
-  try { execSync(`launchctl unload "${LAUNCH_AGENT_PLIST}" 2>/dev/null`, { stdio: "pipe" }); } catch { /* */ }
-  try { execSync(`rm -f "${LAUNCH_AGENT_PLIST}"`, { stdio: "pipe" }); } catch { /* */ }
+  try {
+    execSync(`launchctl unload "${LAUNCH_AGENT_PLIST}" 2>/dev/null`, {
+      stdio: "pipe",
+    });
+  } catch {
+    /* */
+  }
+  try {
+    execSync(`rm -f "${LAUNCH_AGENT_PLIST}"`, { stdio: "pipe" });
+  } catch {
+    /* */
+  }
 }
 
 export function isWatcherRunning(): boolean {
   try {
-    const result = execSync(`launchctl list | grep ${LAUNCH_AGENT_NAME}`, { stdio: "pipe" }).toString();
+    const result = execSync(`launchctl list | grep ${LAUNCH_AGENT_NAME}`, {
+      stdio: "pipe",
+    }).toString();
     return result.includes(LAUNCH_AGENT_NAME);
   } catch {
     return false;

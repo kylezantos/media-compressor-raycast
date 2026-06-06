@@ -18,7 +18,9 @@ function isAlreadyCompressed(path: string): boolean {
   try {
     const result = execSync(`xattr -p ${XATTR_KEY} "${path}" 2>/dev/null`, {
       stdio: "pipe",
-    }).toString().trim();
+    })
+      .toString()
+      .trim();
     return result === "true";
   } catch {
     return false;
@@ -33,7 +35,11 @@ function markCompressed(path: string): void {
   }
 }
 
-function compressPNG(inputPath: string, outputPath: string, quality: ImageQualityPreset): void {
+function compressPNG(
+  inputPath: string,
+  outputPath: string,
+  quality: ImageQualityPreset,
+): void {
   const q = IMAGE_QUALITY_SETTINGS[quality];
 
   if (quality !== "lossless") {
@@ -62,7 +68,11 @@ function compressPNG(inputPath: string, outputPath: string, quality: ImageQualit
   }
 }
 
-function compressJPEG(inputPath: string, outputPath: string, quality: ImageQualityPreset): void {
+function compressJPEG(
+  inputPath: string,
+  outputPath: string,
+  quality: ImageQualityPreset,
+): void {
   const q = IMAGE_QUALITY_SETTINGS[quality];
   copyFileSync(inputPath, outputPath);
 
@@ -99,7 +109,10 @@ export function compressImage(
 
   const tempDir = join(tmpdir(), "media-compressor");
   if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true });
-  const tempOutput = join(tempDir, `compressed-${Date.now()}-${basename(imagePath)}`);
+  const tempOutput = join(
+    tempDir,
+    `compressed-${Date.now()}-${basename(imagePath)}`,
+  );
 
   try {
     if (ext === ".png") {
@@ -114,7 +127,11 @@ export function compressImage(
 
     if (compressedSize >= originalSize) {
       markCompressed(imagePath);
-      try { execSync(`rm -f "${tempOutput}"`, { stdio: "pipe" }); } catch { /* */ }
+      try {
+        execSync(`rm -f "${tempOutput}"`, { stdio: "pipe" });
+      } catch {
+        /* */
+      }
       return {
         path: imagePath,
         originalSize,
@@ -141,7 +158,9 @@ export function compressImage(
         originalSize,
         compressedSize,
         saved: originalSize - compressedSize,
-        percent: Math.round(((originalSize - compressedSize) / originalSize) * 100),
+        percent: Math.round(
+          ((originalSize - compressedSize) / originalSize) * 100,
+        ),
         skipped: false,
       };
     } else {
@@ -154,12 +173,18 @@ export function compressImage(
         originalSize,
         compressedSize,
         saved: originalSize - compressedSize,
-        percent: Math.round(((originalSize - compressedSize) / originalSize) * 100),
+        percent: Math.round(
+          ((originalSize - compressedSize) / originalSize) * 100,
+        ),
         skipped: false,
       };
     }
   } catch (err) {
-    try { execSync(`rm -f "${tempOutput}"`, { stdio: "pipe" }); } catch { /* */ }
+    try {
+      execSync(`rm -f "${tempOutput}"`, { stdio: "pipe" });
+    } catch {
+      /* */
+    }
     return {
       path: imagePath,
       originalSize,
