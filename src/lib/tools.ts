@@ -42,9 +42,24 @@ export function hasImageTools(): boolean {
   return isInstalled("oxipng");
 }
 
+// Binary name -> Homebrew package that provides it
+const IMAGE_TOOL_PACKAGES: Record<string, string> = {
+  pngquant: "pngquant",
+  oxipng: "oxipng",
+  jpegoptim: "jpegoptim",
+  cwebp: "webp",
+  gifsicle: "gifsicle",
+};
+
 export function getMissingImageTools(): string[] {
-  const tools = ["pngquant", "oxipng", "jpegoptim"];
-  return tools.filter((t) => !isInstalled(t));
+  return Object.keys(IMAGE_TOOL_PACKAGES).filter((t) => !isInstalled(t));
+}
+
+function getBrewPath(): string {
+  for (const brew of ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]) {
+    if (existsSync(brew)) return brew;
+  }
+  throw new Error("Homebrew not found. Install it from https://brew.sh first.");
 }
 
 // ── Video Tools ──
@@ -87,11 +102,13 @@ export async function ensureVideoTools(): Promise<boolean> {
 }
 
 export async function installAllTools(): Promise<void> {
+  const brew = getBrewPath();
+
   // Image tools
   const missingImage = getMissingImageTools();
   if (missingImage.length > 0) {
-    const packages = missingImage.join(" ");
-    execSync(`/opt/homebrew/bin/brew install ${packages}`, {
+    const packages = missingImage.map((t) => IMAGE_TOOL_PACKAGES[t]).join(" ");
+    execSync(`${brew} install ${packages}`, {
       env: ENV,
       stdio: "pipe",
       timeout: 120_000,
@@ -100,7 +117,7 @@ export async function installAllTools(): Promise<void> {
 
   // Video tools (ffmpeg includes ffprobe)
   if (!isInstalled("ffmpeg")) {
-    execSync("/opt/homebrew/bin/brew install ffmpeg", {
+    execSync(`${brew} install ffmpeg`, {
       env: ENV,
       stdio: "pipe",
       timeout: 300_000,

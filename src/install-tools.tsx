@@ -10,7 +10,7 @@ export default async function InstallTools() {
   try {
     await installAllTools();
     await showHUD(
-      "Installed: pngquant, oxipng, jpegoptim, ffmpeg, compress-overlay",
+      "Installed: pngquant, oxipng, jpegoptim, cwebp, gifsicle, ffmpeg, compress-overlay",
     );
   } catch (err) {
     await showToast({

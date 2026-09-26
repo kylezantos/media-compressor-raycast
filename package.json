@@ -38,7 +38,7 @@
     {
       "name": "install-tools",
       "title": "Install Compression Tools",
-      "description": "Install image tools (pngquant, oxipng, jpegoptim) and video tools (FFmpeg)",
+      "description": "Install image tools (pngquant, oxipng, jpegoptim, cwebp, gifsicle) and video tools (FFmpeg)",
       "mode": "no-view"
     }
   ],

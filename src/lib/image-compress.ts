@@ -26,7 +26,15 @@ async function runTool(
   args: string[],
   timeout: number,
 ): Promise<void> {
-  await run(getToolPath(tool), args, { env: ENV, timeout });
+  const toolPath = getToolPath(tool);
+  try {
+    await run(toolPath, args, { env: ENV, timeout });
+  } catch (err) {
+    // Surface the tool's own complaint rather than the full command line
+    const stderr = (err as { stderr?: string }).stderr?.trim();
+    const detail = stderr?.split("\n").find((l) => l.trim()) || String(err);
+    throw new Error(`${tool}: ${detail.replace(/^Error!\s*/, "")}`);
+  }
 }
 
 async function isAlreadyCompressed(path: string): Promise<boolean> {
@@ -108,6 +116,65 @@ async function compressJPEG(
   }
 }
 
+async function compressWebP(
+  inputPath: string,
+  outputPath: string,
+  quality: ImageQualityPreset,
+): Promise<void> {
+  const q = IMAGE_QUALITY_SETTINGS[quality];
+  const modeArgs =
+    quality === "lossless"
+      ? ["-lossless", "-z", "9", "-exact"]
+      : ["-q", String(q.webpQuality), "-m", "6"];
+  await runTool(
+    "cwebp",
+    [
+      "-quiet",
+      "-mt",
+      "-metadata",
+      "none",
+      ...modeArgs,
+      inputPath,
+      "-o",
+      outputPath,
+    ],
+    120_000,
+  );
+}
+
+async function compressGIF(
+  inputPath: string,
+  outputPath: string,
+  quality: ImageQualityPreset,
+): Promise<void> {
+  const { gifLossy } = IMAGE_QUALITY_SETTINGS[quality];
+  const lossyArgs = gifLossy > 0 ? [`--lossy=${gifLossy}`] : [];
+  await runTool(
+    "gifsicle",
+    [
+      "-O3",
+      "--no-comments",
+      "--no-names",
+      ...lossyArgs,
+      "-o",
+      outputPath,
+      inputPath,
+    ],
+    120_000,
+  );
+}
+
+const COMPRESSORS: Record<
+  string,
+  (input: string, output: string, quality: ImageQualityPreset) => Promise<void>
+> = {
+  ".png": compressPNG,
+  ".jpg": compressJPEG,
+  ".jpeg": compressJPEG,
+  ".webp": compressWebP,
+  ".gif": compressGIF,
+};
+
 export async function compressImage(
   imagePath: string,
   quality: ImageQualityPreset,
@@ -131,14 +198,10 @@ export async function compressImage(
 
     if (await isAlreadyCompressed(imagePath)) return unchanged;
 
+    const compress = COMPRESSORS[ext];
+    if (!compress) throw new Error(`Unsupported image type: ${ext}`);
     await mkdir(TEMP_DIR, { recursive: true });
-    if (ext === ".png") {
-      await compressPNG(imagePath, tempOutput, quality);
-    } else if (ext === ".jpg" || ext === ".jpeg") {
-      await compressJPEG(imagePath, tempOutput, quality);
-    } else {
-      throw new Error(`Unsupported image type: ${ext}`);
-    }
+    await compress(imagePath, tempOutput, quality);
 
     const compressedSize = (await stat(tempOutput)).size;
     if (compressedSize >= originalSize) {

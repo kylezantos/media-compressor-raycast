@@ -4,15 +4,14 @@ import { join } from "path";
 
 // ── File Extensions ──
 
+// Only formats with a real in-format compressor. TIFF/BMP were listed before
+// but only ever got copied, so they're no longer offered.
 export const IMAGE_EXTENSIONS = new Set([
   ".png",
   ".jpg",
   ".jpeg",
   ".webp",
   ".gif",
-  ".tiff",
-  ".tif",
-  ".bmp",
 ]);
 
 export const VIDEO_EXTENSIONS = new Set([
@@ -44,14 +43,34 @@ export interface ImageCompressionResult {
   error?: string;
 }
 
+// webpQuality is cwebp -q (lossless uses -lossless instead); gifLossy is
+// gifsicle --lossy (0 = lossless optimization only)
 export const IMAGE_QUALITY_SETTINGS: Record<
   ImageQualityPreset,
-  { pngMin: number; pngMax: number; jpegMax: number }
+  {
+    pngMin: number;
+    pngMax: number;
+    jpegMax: number;
+    webpQuality: number;
+    gifLossy: number;
+  }
 > = {
-  lossless: { pngMin: 100, pngMax: 100, jpegMax: 100 },
-  high: { pngMin: 85, pngMax: 100, jpegMax: 90 },
-  medium: { pngMin: 70, pngMax: 90, jpegMax: 80 },
-  low: { pngMin: 50, pngMax: 80, jpegMax: 70 },
+  lossless: {
+    pngMin: 100,
+    pngMax: 100,
+    jpegMax: 100,
+    webpQuality: 100,
+    gifLossy: 0,
+  },
+  high: { pngMin: 85, pngMax: 100, jpegMax: 90, webpQuality: 90, gifLossy: 20 },
+  medium: {
+    pngMin: 70,
+    pngMax: 90,
+    jpegMax: 80,
+    webpQuality: 80,
+    gifLossy: 60,
+  },
+  low: { pngMin: 50, pngMax: 80, jpegMax: 70, webpQuality: 70, gifLossy: 100 },
 };
 
 // ── Video Types ──
