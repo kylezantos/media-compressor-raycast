@@ -19,7 +19,7 @@ import {
   VideoCompressOptions,
   formatBytes,
 } from "./lib/constants";
-import { compressImage } from "./lib/image-compress";
+import { compressImages, summarizeImages } from "./lib/image-compress";
 import { launchVideoCompression } from "./lib/video-compress";
 import { ensureImageTools, ensureVideoTools } from "./lib/tools";
 
@@ -117,28 +117,22 @@ export default function Compress() {
         title: `Compressing ${images.length} image${images.length > 1 ? "s" : ""}...`,
       });
 
-      let totalSaved = 0;
-      let compressed = 0;
-      let skipped = 0;
-
-      for (let i = 0; i < images.length; i++) {
-        toast.message = `${i + 1}/${images.length}: ${basename(images[i])}`;
-        const result = compressImage(images[i], imageQuality, trashOriginals);
-        if (result.error || result.skipped) {
-          skipped++;
-        } else {
-          compressed++;
-          totalSaved += result.saved;
-        }
-      }
+      const results = await compressImages(
+        images,
+        imageQuality,
+        trashOriginals,
+        (done, total) => {
+          toast.message = `${done}/${total}`;
+        },
+      );
+      const { compressed, skipped, failed, saved } = summarizeImages(results);
 
       if (videos.length === 0) {
         const parts: string[] = [];
         if (compressed > 0)
-          parts.push(
-            `${compressed} compressed, saved ${formatBytes(totalSaved)}`,
-          );
+          parts.push(`${compressed} compressed, saved ${formatBytes(saved)}`);
         if (skipped > 0) parts.push(`${skipped} already optimal`);
+        if (failed > 0) parts.push(`${failed} failed`);
         await showHUD(parts.join(" · ") || "Done");
         await popToRoot();
         return;

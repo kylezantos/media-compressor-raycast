@@ -18,7 +18,7 @@ import {
   getPrefs,
   formatBytes,
 } from "./lib/constants";
-import { compressImage } from "./lib/image-compress";
+import { compressImages } from "./lib/image-compress";
 import { hasImageTools, ensureImageTools } from "./lib/tools";
 
 function ResultsView({ results }: { results: ImageCompressionResult[] }) {
@@ -129,12 +129,14 @@ export default function CompressFolder() {
     });
 
     const quality = (values.imageQuality || "high") as ImageQualityPreset;
-    const results: ImageCompressionResult[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      toast.message = `${i + 1}/${files.length}: ${files[i].split("/").pop()}`;
-      results.push(compressImage(files[i], quality, values.trashOriginals));
-    }
+    const results = await compressImages(
+      files,
+      quality,
+      values.trashOriginals,
+      (done, total) => {
+        toast.message = `${done}/${total}`;
+      },
+    );
 
     toast.hide();
     setIsLoading(false);
