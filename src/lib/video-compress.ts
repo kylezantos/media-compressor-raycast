@@ -17,6 +17,9 @@ import { getVideoInfo } from "./probe";
 
 const TEMP_DIR = join(tmpdir(), "media-compressor");
 
+// Keep stderr to real errors so the overlay's failure message is meaningful
+const LOG_ARGS = ["-hide_banner", "-loglevel", "error"];
+
 function ensureTempDir(): void {
   if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true });
 }
@@ -54,11 +57,13 @@ function buildCRFPasses(
   const audioArgs = buildAudioArgs(options.audioMode, info);
   const filter = buildScaleFilter(options.resolution);
 
-  const args: string[] = ["-i", info.path];
+  const args: string[] = [...LOG_ARGS, "-i", info.path];
   if (filter) args.push("-vf", filter);
   args.push("-c:v", lib, "-crf", String(crf), "-preset", preset);
   // hvc1 tag required for Apple/QuickTime H.265 playback
-  if (options.codec === "h265") args.push("-tag:v", "hvc1");
+  if (options.codec === "h265") {
+    args.push("-tag:v", "hvc1", "-x265-params", "log-level=error");
+  }
   args.push(
     ...audioArgs,
     "-movflags",
@@ -89,7 +94,7 @@ function buildTargetSizePasses(
   );
 
   const passLogFile = join(TEMP_DIR, `passlog-${Date.now()}`);
-  const baseArgs: string[] = ["-i", info.path];
+  const baseArgs: string[] = [...LOG_ARGS, "-i", info.path];
   if (filter) baseArgs.push("-vf", filter);
   baseArgs.push("-c:v", lib, "-b:v", `${videoBitrate}k`);
   if (options.codec === "h265") baseArgs.push("-tag:v", "hvc1");
@@ -118,29 +123,37 @@ function buildTargetSizePasses(
     ];
   }
 
-  // H.264/H.265: two-pass
-  baseArgs.push("-preset", preset, "-passlogfile", passLogFile);
+  // H.264/H.265: two-pass. libx265 ignores ffmpeg's -pass/-passlogfile (pass 2
+  // comes out identical to a single pass), so it gets its own stats settings.
+  baseArgs.push("-preset", preset);
+  const passArgs = (pass: 1 | 2): string[] =>
+    options.codec === "h265"
+      ? [
+          "-x265-params",
+          `pass=${pass}:stats=${passLogFile}:log-level=error` +
+            (pass === 1 ? ":slow-firstpass=0" : ""),
+        ]
+      : ["-pass", String(pass), "-passlogfile", passLogFile];
+
   return [
     {
       args: [
         ...baseArgs,
-        "-pass",
-        "1",
+        ...passArgs(1),
         "-an",
         "-f",
-        "mp4",
+        "null",
         "-progress",
         "pipe:1",
         "-y",
-        "/dev/null",
+        "-",
       ],
       label: "Pass 1: Analyzing...",
     },
     {
       args: [
         ...baseArgs,
-        "-pass",
-        "2",
+        ...passArgs(2),
         "-c:a",
         "aac",
         "-b:a",
