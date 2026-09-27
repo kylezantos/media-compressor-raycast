@@ -192,6 +192,7 @@ export default function CompressFolder() {
         id="trashOriginals"
         label="Move originals to Trash"
         defaultValue={prefs.trashOriginals}
+        info="When off, originals are kept and the compressed copy is saved beside them as name-compressed. When on, originals go to the macOS Trash."
       />
     </Form>
   );

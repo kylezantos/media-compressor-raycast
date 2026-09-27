@@ -138,7 +138,7 @@ Dependencies (installed via the **Install Compression Tools** command):
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Move originals to Trash | On | Replaces originals with compressed versions. Originals are recoverable from macOS Trash. |
+| Move originals to Trash | On | On: originals go to the macOS Trash and the compressed file takes their place. Off: originals are kept and the compressed file is saved beside them as `name-compressed.ext`. Watch folders always move originals to the Trash. |
 | Quick Compress → Image Quality | High | Image preset Quick Compress uses. |
 | Quick Compress → Video Codec | H.265 | Video codec Quick Compress uses. |
 | Quick Compress → Video Encode Speed | Balanced | Fast uses the hardware encoder: about 3x quicker, larger files. |

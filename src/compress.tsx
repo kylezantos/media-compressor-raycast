@@ -278,7 +278,7 @@ export default function Compress() {
             id="trashOriginals"
             label="Move originals to Trash"
             defaultValue={prefs.trashOriginals}
-            info="Recoverable from macOS Trash."
+            info="When off, originals are kept and the compressed copy is saved beside them as name-compressed. When on, originals go to the macOS Trash."
           />
 
           {/* ── Image Settings ── */}

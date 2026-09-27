@@ -1,8 +1,9 @@
 import { execFile } from "child_process";
 import { randomUUID } from "crypto";
+import { constants } from "fs";
 import { copyFile, mkdir, rm, stat } from "fs/promises";
 import { cpus } from "os";
-import { extname, join } from "path";
+import { basename, dirname, extname, join } from "path";
 import { promisify } from "util";
 import { trash } from "@raycast/api";
 import {
@@ -174,6 +175,27 @@ const COMPRESSORS: Record<
   ".gif": compressGIF,
 };
 
+/**
+ * Copies to "photo-compressed.png" beside the original, or "photo-compressed
+ * 2.png" and so on if taken (same naming as videos). Never overwrites.
+ */
+async function copyBesideOriginal(
+  source: string,
+  original: string,
+): Promise<string> {
+  const ext = extname(original);
+  const stem = join(dirname(original), `${basename(original, ext)}-compressed`);
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? `${stem}${ext}` : `${stem} ${n}${ext}`;
+    try {
+      await copyFile(source, candidate, constants.COPYFILE_EXCL);
+      return candidate;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+    }
+  }
+}
+
 export async function compressImage(
   imagePath: string,
   quality: ImageQualityPreset,
@@ -208,14 +230,30 @@ export async function compressImage(
       return unchanged;
     }
 
-    // Trash first so the original stays recoverable; if trashing fails we
-    // bail out before touching the file.
-    if (trashOriginal) await trash(imagePath);
-    await copyFile(tempOutput, imagePath);
-    await markCompressed(imagePath);
+    let outputPath: string;
+    if (trashOriginal) {
+      // Trash first so the original stays recoverable. EXCL means the copy
+      // fails rather than overwrites if the original is somehow still there.
+      await trash(imagePath);
+      try {
+        await copyFile(tempOutput, imagePath, constants.COPYFILE_EXCL);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+        throw new Error(
+          "Couldn't move the original to the Trash; left it as is.",
+        );
+      }
+      outputPath = imagePath;
+    } else {
+      // Keep the original and save the result beside it. Marking the
+      // original too stops a re-run from making another copy.
+      outputPath = await copyBesideOriginal(tempOutput, imagePath);
+      await markCompressed(imagePath);
+    }
+    await markCompressed(outputPath);
 
     return {
-      path: imagePath,
+      path: outputPath,
       originalSize,
       compressedSize,
       saved: originalSize - compressedSize,

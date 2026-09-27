@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** Trash Originals - Default: move originals to Trash after compression (can be overridden per operation) */
+  /** Trash Originals - Default for the Move originals to Trash checkbox. On: originals go to the Trash and the compressed file takes their place. Off: originals are kept and the compressed copy is saved beside them. */
   "trashOriginals": boolean
 }
 

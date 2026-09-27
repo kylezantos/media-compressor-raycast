@@ -2,10 +2,6 @@
 
 Deferred from the 2026-09-26 performance/reliability pass (branch `claude/repo-performance-review-5bd93b`).
 
-## Needs a product decision
-
-- **"Move originals to Trash" off overwrites images in place.** With the checkbox off, a compressed image replaces the original with no copy kept anywhere (`src/lib/image-compress.ts`, `compressImage`). Videos behave differently: they keep the original and save `name-compressed.ext` beside it. Decide whether "off" should mean "replace permanently" (then say so in the checkbox and README) or "keep the original alongside, like videos". Predates this branch.
-
 ## Bugs
 
 - **H.264 from 10-bit sources won't play in QuickTime.** libx264 keeps 10-bit input (e.g. iPhone HDR) as High 10 profile, which QuickTime and most Apple apps can't play. Add `-pix_fmt yuv420p` for H.264 software encodes, or steer 10-bit sources to H.265. Predates this branch.
