@@ -158,7 +158,7 @@ export default function Compress() {
 
     // ── Compress images (inline, fast) ──
     if (images.length > 0) {
-      const ready = await ensureImageTools();
+      const ready = await ensureImageTools(images);
       if (!ready) return;
 
       const toast = await showToast({

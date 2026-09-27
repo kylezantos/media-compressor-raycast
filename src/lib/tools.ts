@@ -1,8 +1,8 @@
 import { execFile } from "child_process";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { existsSync } from "fs";
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
-import { join } from "path";
+import { mkdir, readFile, rename, rm, writeFile } from "fs/promises";
+import { extname, join } from "path";
 import { promisify } from "util";
 import { showToast, Toast, environment } from "@raycast/api";
 import { CONFIG_DIR, OVERLAY_BIN } from "./constants";
@@ -47,6 +47,15 @@ const IMAGE_TOOL_PACKAGES: Record<string, string> = {
   jpegoptim: "jpegoptim",
   cwebp: "webp",
   gifsicle: "gifsicle",
+};
+
+// Tool each format can't be compressed without (pngquant is optional for PNG)
+const EXTENSION_TOOLS: Record<string, string> = {
+  ".png": "oxipng",
+  ".jpg": "jpegoptim",
+  ".jpeg": "jpegoptim",
+  ".webp": "cwebp",
+  ".gif": "gifsicle",
 };
 
 export function getMissingImageTools(): string[] {
@@ -94,13 +103,15 @@ export async function buildOverlay(): Promise<void> {
   const hash = await overlaySourceHash();
 
   await mkdir(CONFIG_DIR, { recursive: true });
-  const building = `${OVERLAY_BIN}.building`;
+  // Unique per call so two commands rebuilding at once don't share a temp file
+  const building = `${OVERLAY_BIN}.${process.pid}.${randomUUID()}.building`;
   try {
     await run("/usr/bin/swiftc", ["-O", "-o", building, source], {
       env: ENV,
       timeout: 180_000,
     });
   } catch (err) {
+    await rm(building, { force: true });
     const stderr = (err as { stderr?: string }).stderr?.trim().split("\n")[0];
     throw new Error(
       `Couldn't build the progress overlay${stderr ? `: ${stderr}` : ""}. ` +
@@ -132,12 +143,23 @@ export async function ensureOverlay(): Promise<string> {
 
 // ── Combined ──
 
-export async function ensureImageTools(): Promise<boolean> {
-  if (hasImageTools()) return true;
+/** Checks the tools these particular files need, e.g. cwebp for .webp. */
+export async function ensureImageTools(paths: string[]): Promise<boolean> {
+  const required = new Set(
+    paths
+      .map((p) => EXTENSION_TOOLS[extname(p).toLowerCase()])
+      .filter((tool): tool is string => Boolean(tool)),
+  );
+
+  const missing = Object.keys(IMAGE_TOOL_PACKAGES).filter(
+    (tool) => required.has(tool) && !isInstalled(tool),
+  );
+  if (missing.length === 0) return true;
+
   await showToast({
     style: Toast.Style.Failure,
     title: "Missing image tools",
-    message: "Run 'Install Compression Tools' first",
+    message: `Run 'Install Compression Tools': ${missing.join(", ")}`,
   });
   return false;
 }

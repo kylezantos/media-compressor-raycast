@@ -14,12 +14,7 @@ import {
 } from "./lib/constants";
 import { compressImages, summarizeImages } from "./lib/image-compress";
 import { queueVideos } from "./lib/video-compress";
-import {
-  ensureImageTools,
-  ensureVideoTools,
-  hasImageTools,
-  hasVideoTools,
-} from "./lib/tools";
+import { ensureImageTools, ensureVideoTools, hasVideoTools } from "./lib/tools";
 
 export default async function CompressQuick() {
   const prefs = getPreferenceValues<Preferences.CompressQuick>();
@@ -48,10 +43,8 @@ export default async function CompressQuick() {
 
   // ── Images ──
   if (images.length > 0) {
-    if (!hasImageTools()) {
-      await ensureImageTools();
-      return;
-    }
+    const ready = await ensureImageTools(images);
+    if (!ready) return;
 
     const toast = await showToast({
       style: Toast.Style.Animated,

@@ -19,7 +19,7 @@ import {
   formatBytes,
 } from "./lib/constants";
 import { compressImages } from "./lib/image-compress";
-import { hasImageTools, ensureImageTools } from "./lib/tools";
+import { ensureImageTools } from "./lib/tools";
 
 function ResultsView({ results }: { results: ImageCompressionResult[] }) {
   const totalOriginal = results.reduce((sum, r) => sum + r.originalSize, 0);
@@ -83,11 +83,6 @@ export default function CompressFolder() {
     imageQuality: string;
     trashOriginals: boolean;
   }) {
-    if (!hasImageTools()) {
-      await ensureImageTools();
-      return;
-    }
-
     const folderPath = values.folder?.[0];
     if (!folderPath) {
       await showToast({
@@ -119,6 +114,12 @@ export default function CompressFolder() {
         style: Toast.Style.Failure,
         title: "No images found in folder",
       });
+      setIsLoading(false);
+      return;
+    }
+
+    const ready = await ensureImageTools(files);
+    if (!ready) {
       setIsLoading(false);
       return;
     }
