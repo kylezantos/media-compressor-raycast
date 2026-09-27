@@ -10,7 +10,7 @@ import {
   popToRoot,
 } from "@raycast/api";
 import { useState, useEffect } from "react";
-import { extname, basename } from "path";
+import { extname } from "path";
 import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
@@ -20,7 +20,7 @@ import {
   formatBytes,
 } from "./lib/constants";
 import { compressImages, summarizeImages } from "./lib/image-compress";
-import { launchVideoCompression } from "./lib/video-compress";
+import { queueVideos } from "./lib/video-compress";
 import { ensureImageTools, ensureVideoTools } from "./lib/tools";
 
 export default function Compress() {
@@ -141,7 +141,9 @@ export default function Compress() {
       toast.hide();
     }
 
-    // ── Launch video compressions (via overlay, background) ──
+    // ── Queue video compressions (via overlay, background) ──
+    let queuedVideos = 0;
+    let failedVideos = 0;
     if (videos.length > 0) {
       const ready = await ensureVideoTools();
       if (!ready) return;
@@ -166,27 +168,20 @@ export default function Compress() {
         trashOriginal: trashOriginals,
       };
 
-      for (const vid of videos) {
-        try {
-          await launchVideoCompression(vid, videoOptions);
-        } catch (err) {
-          await showToast({
-            style: Toast.Style.Failure,
-            title: `Failed: ${basename(vid)}`,
-            message: err instanceof Error ? err.message : String(err),
-          });
-          return;
-        }
-      }
+      const queue = await queueVideos(videos, videoOptions);
+      if (!queue) return;
+      queuedVideos = queue.queued;
+      failedVideos = queue.failed.length;
     }
 
     const parts: string[] = [];
     if (images.length > 0)
       parts.push(`${images.length} image${images.length > 1 ? "s" : ""} done`);
-    if (videos.length > 0)
+    if (queuedVideos > 0)
       parts.push(
-        `${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`,
+        `${queuedVideos} video${queuedVideos > 1 ? "s" : ""} compressing...`,
       );
+    if (failedVideos > 0) parts.push(`${failedVideos} couldn't be read`);
     await showHUD(parts.join(", "));
     await popToRoot();
   }

@@ -4,7 +4,7 @@ import {
   Toast,
   getSelectedFinderItems,
 } from "@raycast/api";
-import { extname, basename } from "path";
+import { extname } from "path";
 import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
@@ -13,7 +13,7 @@ import {
   formatBytes,
 } from "./lib/constants";
 import { compressImages, summarizeImages } from "./lib/image-compress";
-import { launchVideoCompression } from "./lib/video-compress";
+import { queueVideos } from "./lib/video-compress";
 import {
   ensureImageTools,
   ensureVideoTools,
@@ -92,22 +92,15 @@ export default async function CompressQuick() {
       trashOriginal: prefs.trashOriginals,
     };
 
-    for (const vid of videos) {
-      try {
-        await launchVideoCompression(vid, videoOptions);
-      } catch (err) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: `Failed: ${basename(vid)}`,
-          message: err instanceof Error ? err.message : String(err),
-        });
-        return;
-      }
-    }
-
-    resultParts.push(
-      `${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`,
-    );
+    const queue = await queueVideos(videos, videoOptions);
+    if (!queue) return;
+    const { queued, failed } = queue;
+    if (queued > 0)
+      resultParts.push(
+        `${queued} video${queued > 1 ? "s" : ""} compressing...`,
+      );
+    if (failed.length > 0)
+      resultParts.push(`${failed.length} couldn't be read`);
   }
 
   await showHUD(resultParts.join(" · ") || "Done");

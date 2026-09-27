@@ -1,5 +1,5 @@
 import { getPreferenceValues } from "@raycast/api";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
 import { join } from "path";
 
 // ── File Extensions ──
@@ -109,10 +109,15 @@ export interface PassConfig {
   label: string;
 }
 
+// One queued video job, read by the overlay (assets/CompressOverlay.swift)
 export interface CompressConfig {
   input: string;
   output: string;
+  // Where the result goes; keepPath is used instead if trashing the original fails
   finalPath: string;
+  keepPath: string;
+  // Holds the output and pass logs; the overlay deletes it after the job
+  workDir: string;
   duration: number;
   originalSize: number;
   filename: string;
@@ -132,6 +137,21 @@ export const CODEC_LIBS: Record<Codec, string> = {
   h264: "libx264",
   h265: "libx265",
   av1: "libsvtav1",
+};
+
+// "Fast" uses the Apple Silicon media engine: ~3x faster than libx265, but
+// files come out several times larger at similar quality. No AV1 encoder.
+export const HW_ENCODERS: Partial<Record<Codec, string>> = {
+  h264: "h264_videotoolbox",
+  h265: "hevc_videotoolbox",
+};
+
+// VideoToolbox -q:v (1-100, higher = better) per quality preset
+export const HW_QUALITY: Record<VideoQualityPreset, number> = {
+  lossless: 75,
+  high: 65,
+  medium: 55,
+  low: 45,
 };
 
 export const SPEED_PRESETS: Record<Codec, Record<Speed, string>> = {
@@ -158,6 +178,9 @@ export function getPrefs(): Preferences {
 
 // ── Paths ──
 
+export const TEMP_DIR = join(tmpdir(), "media-compressor");
+// Video jobs waiting for the overlay; one overlay drains it in order
+export const QUEUE_DIR = join(TEMP_DIR, "queue");
 export const CONFIG_DIR = join(homedir(), ".config", "media-compressor");
 export const WATCHERS_FILE = join(CONFIG_DIR, "watchers.json");
 export const OVERLAY_BIN = join(CONFIG_DIR, "compress-overlay");

@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import { randomUUID } from "crypto";
 import { copyFile, mkdir, rm, stat } from "fs/promises";
-import { cpus, tmpdir } from "os";
+import { cpus } from "os";
 import { extname, join } from "path";
 import { promisify } from "util";
 import { trash } from "@raycast/api";
@@ -9,13 +9,12 @@ import {
   ImageQualityPreset,
   ImageCompressionResult,
   IMAGE_QUALITY_SETTINGS,
+  TEMP_DIR,
   XATTR_KEY,
 } from "./constants";
 import { getToolPath, ENV } from "./tools";
 
 const run = promisify(execFile);
-
-const TEMP_DIR = join(tmpdir(), "media-compressor");
 
 // pngquant is single-threaded and oxipng already uses several threads, so
 // half the cores keeps the machine busy without thrashing.

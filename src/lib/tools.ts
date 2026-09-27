@@ -1,8 +1,13 @@
-import { execSync } from "child_process";
+import { execFile } from "child_process";
+import { createHash } from "crypto";
 import { existsSync } from "fs";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";
+import { promisify } from "util";
 import { showToast, Toast, environment } from "@raycast/api";
 import { CONFIG_DIR, OVERLAY_BIN } from "./constants";
+
+const run = promisify(execFile);
 
 const SEARCH_PATHS = [
   "/opt/homebrew/bin",
@@ -14,13 +19,6 @@ const PATH = SEARCH_PATHS.join(":");
 export const ENV = { ...process.env, PATH };
 
 export function getToolPath(tool: string): string {
-  if (tool === "compress-overlay") {
-    if (existsSync(OVERLAY_BIN)) return OVERLAY_BIN;
-    throw new Error(
-      "Compression overlay not built. Run 'Install Compression Tools'.",
-    );
-  }
-
   for (const dir of SEARCH_PATHS) {
     const fullPath = join(dir, tool);
     if (existsSync(fullPath)) return fullPath;
@@ -64,18 +62,72 @@ function getBrewPath(): string {
 
 // ── Video Tools ──
 
+// The overlay isn't checked here: ensureOverlay() builds it on demand
 export function hasVideoTools(): boolean {
-  return (
-    isInstalled("ffmpeg") && isInstalled("ffprobe") && existsSync(OVERLAY_BIN)
-  );
+  return isInstalled("ffmpeg") && isInstalled("ffprobe");
 }
 
 export function getMissingVideoTools(): string[] {
-  const missing: string[] = [];
-  if (!isInstalled("ffmpeg")) missing.push("ffmpeg");
-  if (!isInstalled("ffprobe")) missing.push("ffprobe");
-  if (!existsSync(OVERLAY_BIN)) missing.push("compress-overlay");
-  return missing;
+  return ["ffmpeg", "ffprobe"].filter((t) => !isInstalled(t));
+}
+
+// ── Progress Overlay ──
+
+// Records which Swift source the current binary was built from
+const OVERLAY_STAMP = `${OVERLAY_BIN}.sha256`;
+
+function overlaySourcePath(): string {
+  return join(environment.assetsPath, "CompressOverlay.swift");
+}
+
+async function overlaySourceHash(): Promise<string> {
+  const source = await readFile(overlaySourcePath());
+  return createHash("sha256").update(source).digest("hex");
+}
+
+/** Compiles the bundled Swift source into OVERLAY_BIN. */
+export async function buildOverlay(): Promise<void> {
+  const source = overlaySourcePath();
+  if (!existsSync(source)) {
+    throw new Error("Swift source not found in extension assets.");
+  }
+  const hash = await overlaySourceHash();
+
+  await mkdir(CONFIG_DIR, { recursive: true });
+  const building = `${OVERLAY_BIN}.building`;
+  try {
+    await run("/usr/bin/swiftc", ["-O", "-o", building, source], {
+      env: ENV,
+      timeout: 180_000,
+    });
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr?.trim().split("\n")[0];
+    throw new Error(
+      `Couldn't build the progress overlay${stderr ? `: ${stderr}` : ""}. ` +
+        "It needs the Xcode Command Line Tools (xcode-select --install).",
+    );
+  }
+  // rename swaps the binary atomically, so a running overlay isn't disturbed
+  await rename(building, OVERLAY_BIN);
+  await writeFile(OVERLAY_STAMP, hash);
+}
+
+/**
+ * Returns the overlay binary, rebuilding it first when the bundled Swift
+ * source has changed since the last build (e.g. after an extension update).
+ */
+export async function ensureOverlay(): Promise<string> {
+  const hash = await overlaySourceHash();
+  const builtFrom = await readFile(OVERLAY_STAMP, "utf8").catch(() => "");
+  if (existsSync(OVERLAY_BIN) && builtFrom.trim() === hash) return OVERLAY_BIN;
+
+  const toast = await showToast({
+    style: Toast.Style.Animated,
+    title: "Updating progress overlay...",
+  });
+  await buildOverlay();
+  await toast.hide();
+  return OVERLAY_BIN;
 }
 
 // ── Combined ──
@@ -101,39 +153,26 @@ export async function ensureVideoTools(): Promise<boolean> {
   return false;
 }
 
-export async function installAllTools(): Promise<void> {
+export async function installAllTools(
+  onStep?: (step: string) => void,
+): Promise<void> {
   const brew = getBrewPath();
+  const options = { env: ENV, maxBuffer: 16 * 1024 * 1024 };
 
   // Image tools
   const missingImage = getMissingImageTools();
   if (missingImage.length > 0) {
-    const packages = missingImage.map((t) => IMAGE_TOOL_PACKAGES[t]).join(" ");
-    execSync(`${brew} install ${packages}`, {
-      env: ENV,
-      stdio: "pipe",
-      timeout: 120_000,
-    });
+    const packages = missingImage.map((t) => IMAGE_TOOL_PACKAGES[t]);
+    onStep?.(`Installing ${packages.join(", ")}...`);
+    await run(brew, ["install", ...packages], { ...options, timeout: 300_000 });
   }
 
   // Video tools (ffmpeg includes ffprobe)
   if (!isInstalled("ffmpeg")) {
-    execSync(`${brew} install ffmpeg`, {
-      env: ENV,
-      stdio: "pipe",
-      timeout: 300_000,
-    });
+    onStep?.("Installing ffmpeg...");
+    await run(brew, ["install", "ffmpeg"], { ...options, timeout: 600_000 });
   }
 
-  // Build overlay binary
-  const swiftSource = join(environment.assetsPath, "CompressOverlay.swift");
-  if (!existsSync(swiftSource)) {
-    throw new Error("Swift source not found in extension assets.");
-  }
-
-  execSync(`mkdir -p "${CONFIG_DIR}"`, { stdio: "pipe" });
-  execSync(`swiftc -O -o "${OVERLAY_BIN}" "${swiftSource}"`, {
-    env: ENV,
-    stdio: "pipe",
-    timeout: 120_000,
-  });
+  onStep?.("Building progress overlay...");
+  await buildOverlay();
 }
