@@ -1,58 +1,5 @@
 # Media Compressor
 
-
-Compress selected images and videos from Raycast with configurable quality, size, codec, and cleanup settings.
-
-## Requirements
-
-- Raycast for macOS or Raycast 2 Beta
-- Node.js and npm
-- Compression tools installed through the extension's **Install Compression Tools** command
-
-## Install
-
-Install dependencies first:
-
-```bash
-npm install
-```
-
-For active development, start the Raycast dev server:
-
-```bash
-npm run dev
-```
-
-With current `@raycast/api` versions, `ray develop` opens in Raycast 2 when Raycast 2 is running and falls back to Raycast 1 otherwise.
-
-For a manual Raycast 2 Beta install without keeping the dev watcher running:
-
-```bash
-npm run install:raycast-beta
-```
-
-For a manual stable Raycast install:
-
-```bash
-npm run install:raycast
-```
-
-## Commands
-
-- **Compress Media**: Pick image and video compression settings.
-- **Quick Compress**: Compress selected media with defaults.
-- **Compress Folder**: Compress images in a selected folder.
-- **Manage Watch Folders**: Configure folders for automatic image compression.
-- **Install Compression Tools**: Install image and video compression dependencies.
-
-## Publishing Note
-
-Raycast validates the `author` field against a real Raycast user. Before publishing or running full Raycast lint successfully, update `package.json` with the correct Raycast username and log in with:
-
-```bash
-npx ray login
-```
-
 A Raycast extension for compressing images and videos on macOS. Full control over quality, codec, resolution, and audio — or just hit a keyboard shortcut and let it handle everything.
 
 ## Context
@@ -70,15 +17,15 @@ This extension fills those gaps. Select files in Finder, hit **Quick Compress**,
 
 | Command | Description |
 |---------|-------------|
-| **Compress Media** | Form-based UI with full options. Auto-detects Finder selection or lets you pick files. |
-| **Quick Compress** | No-UI instant compression of Finder selection using smart defaults. Bind to a shortcut. |
+| **Compress Media** | Form-based UI with full options. Auto-detects Finder selection or lets you pick files. Remembers your last settings. |
+| **Quick Compress** | No-UI instant compression of Finder selection using your Quick Compress preferences. Bind to a shortcut. |
 | **Compress Folder** | Batch compress all images in a folder with per-file stats and savings report. |
 | **Manage Watch Folders** | Add folders that auto-compress new images silently in the background. |
 | **Install Compression Tools** | One-click Homebrew installer for all dependencies. |
 
 ## Supported Formats
 
-**Images:** PNG, JPEG, WebP, GIF, TIFF, BMP
+**Images:** PNG, JPEG, WebP (still images), GIF
 
 **Videos:** MP4, MOV, MKV, AVI, WebM, M4V, WMV, FLV, 3GP, MTS, M2TS, TS
 
@@ -86,46 +33,65 @@ This extension fills those gaps. Select files in Finder, hit **Quick Compress**,
 
 ### Images
 
-Three tools work together for optimal compression:
+Each format goes through a dedicated tool, several files at a time:
 
 - **pngquant** — lossy PNG quantization with quality range per preset
 - **oxipng** — lossless PNG optimization (always runs after pngquant)
 - **jpegoptim** — JPEG compression with progressive encoding and metadata stripping
+- **cwebp** — WebP re-encoding (animated WebP isn't supported)
+- **gifsicle** — GIF optimization, lossy above the Lossless preset
 
-Files that have already been compressed are tagged via `xattr` and skipped on future passes.
+A result only replaces the original when it's smaller. Files that have already been compressed are tagged via `xattr` and skipped on future passes.
 
 ### Videos
 
 Uses **FFmpeg** with three compression modes:
 
 - **Quality (CRF)** — single-pass, constant rate factor. Best for general use.
-- **Target size %** — two-pass encoding to hit a percentage of the original file size.
-- **Target size MB** — two-pass encoding to hit an absolute file size.
+- **Target size %** — aims for a percentage of the original file size.
+- **Target size MB** — aims for an absolute file size.
+
+Target-size modes use two-pass encoding for H.264 and H.265 at Balanced and Thorough speeds, and a single pass for AV1 and Fast.
 
 **Codecs:** H.264, H.265 (tagged `hvc1` for Apple compatibility), AV1
+
+**Encode speed:** Fast uses the Mac's hardware encoder (VideoToolbox, Apple Silicon) for H.264 and H.265 — about 3x quicker than Balanced, but files come out noticeably larger. Balanced and Thorough use the x264/x265 software encoders; AV1 always uses SVT-AV1.
 
 **Resolution:** Original, 1080p, 720p, 480p (Lanczos downscaling, preserves aspect ratio)
 
 **Audio:** Smart mode (copies AAC as-is, re-encodes other formats to AAC 128k), Copy original, AAC 128k, AAC 192k
 
-All video output uses `-movflags +faststart` for web-optimized playback.
+**Output:** MP4, M4V and MOV keep their extension; everything else (MKV, WebM, AVI, …) becomes `.mp4`. AV1 output is always `.mp4`. An existing file is never overwritten — the new one gets a numbered name instead. All video output uses `-movflags +faststart` for web-optimized playback.
 
 ### Native Progress Overlay
 
-Video compression runs through a compiled Swift binary that displays a floating macOS overlay window with progress — so you don't need to keep Raycast open while it works.
+Video compression runs through a compiled Swift binary that displays a floating macOS overlay window with progress — so you don't need to keep Raycast open while it works. Videos are queued: one overlay encodes them one after another and shows a combined summary at the end, and videos you add while it's running join the same queue. Closing the overlay cancels the current and queued videos.
+
+The overlay is compiled from `assets/CompressOverlay.swift` and rebuilds itself automatically whenever that file changes.
 
 ## Quality Presets
 
-| Preset | PNG (pngquant) | JPEG (jpegoptim) | H.264 CRF | H.265 CRF | AV1 CRF |
-|--------|---------------|------------------|-----------|-----------|---------|
-| Lossless | skipped (oxipng only) | lossless | 18 | 20 | 23 |
-| High | 85-100 | max 90 | 23 | 24 | 30 |
-| Medium | 70-90 | max 80 | 28 | 28 | 38 |
-| Low | 50-80 | max 70 | 32 | 32 | 45 |
+**Images**
+
+| Preset | PNG (pngquant) | JPEG (jpegoptim) | WebP (cwebp) | GIF (gifsicle) |
+|--------|---------------|------------------|--------------|----------------|
+| Lossless | skipped (oxipng only) | lossless | lossless | lossless |
+| High | 85-100 | max 90 | quality 90 | lossy 20 |
+| Medium | 70-90 | max 80 | quality 80 | lossy 60 |
+| Low | 50-80 | max 70 | quality 70 | lossy 100 |
+
+**Videos**
+
+| Preset | H.264 CRF | H.265 CRF | AV1 CRF | Fast (hardware quality) |
+|--------|-----------|-----------|---------|-------------------------|
+| Lossless | 18 | 20 | 23 | 75 |
+| High | 23 | 24 | 30 | 65 |
+| Medium | 28 | 28 | 38 | 55 |
+| Low | 32 | 32 | 45 | 45 |
 
 ## Watch Folders
 
-Add any folder as a watch target and new images are automatically compressed in the background using a macOS `launchd` LaunchAgent. Each folder can have its own quality preset. Activity is logged to `~/.config/media-compressor/watcher.log`.
+Add any folder as a watch target and new images are automatically compressed in the background using a macOS `launchd` LaunchAgent. Each folder can have its own quality preset. Each run only looks at files that changed since the last one, and compresses them in parallel. Originals go to the Trash; if one can't be trashed, it's left untouched. Activity is logged to `~/.config/media-compressor/watcher.log`.
 
 ## Install
 
@@ -142,28 +108,48 @@ npm run dev
 
 With `npm run dev` running, Raycast will import the extension automatically. You can stop the dev process once the extension appears in Raycast — it stays installed.
 
-Then run **Install Compression Tools** from Raycast to install the Homebrew dependencies (`pngquant`, `oxipng`, `jpegoptim`, `ffmpeg`) and compile the Swift progress overlay.
+To install a build without keeping the dev watcher running:
+
+```bash
+npm run install:raycast
+```
+
+This writes the build to `~/.config/raycast/extensions/media-compressor`, which Raycast 2 uses (it replaced Raycast 1 in place; the old Raycast 2 Beta `raycast-x` folder is gone).
+
+Then run **Install Compression Tools** from Raycast to install the Homebrew dependencies and compile the Swift progress overlay.
 
 ## Requirements
 
-- macOS
-- [Raycast](https://raycast.com)
+- macOS on Apple Silicon (Raycast 2 requires it; hardware "Fast" encoding also needs it)
+- [Raycast](https://raycast.com) 2
 - [Homebrew](https://brew.sh)
-- Node.js (for the initial dev-mode install)
+- Xcode Command Line Tools, for compiling the overlay (`xcode-select --install`)
+- Node.js 22.22.2 or newer (for the dev-mode install)
 
 Dependencies (installed via the **Install Compression Tools** command):
 - `pngquant`
 - `oxipng`
 - `jpegoptim`
+- `webp` (provides `cwebp`)
+- `gifsicle`
 - `ffmpeg`
-
-The Swift overlay binary is compiled from source during installation — no additional Swift dependencies needed.
 
 ## Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Move originals to Trash | On | Replaces originals with compressed versions. Originals are recoverable from macOS Trash. |
+| Quick Compress → Image Quality | High | Image preset Quick Compress uses. |
+| Quick Compress → Video Codec | H.265 | Video codec Quick Compress uses. |
+| Quick Compress → Video Encode Speed | Balanced | Fast uses the hardware encoder: about 3x quicker, larger files. |
+
+## Publishing Note
+
+Raycast validates the `author` field against a real Raycast user. Before publishing or running full Raycast lint successfully, update `package.json` with the correct Raycast username and log in with:
+
+```bash
+npx ray login
+```
 
 ## License
 
