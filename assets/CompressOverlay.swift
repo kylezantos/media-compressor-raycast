@@ -278,7 +278,7 @@ struct OverlayView: View {
             Text(failure)
                 .font(.system(size: 11))
                 .foregroundColor(.orange.opacity(0.8))
-                .lineLimit(3)
+                .lineLimit(6)
                 .padding(.bottom, 6)
         }
 
@@ -571,7 +571,18 @@ class AppController: NSObject, NSApplicationDelegate {
     // MARK: Compression
 
     private func runJob(_ job: CompressConfig) -> JobResult {
-        defer { try? FileManager.default.removeItem(atPath: job.workDir) }
+        var keepWorkDir = false
+        defer { if !keepWorkDir { try? FileManager.default.removeItem(atPath: job.workDir) } }
+
+        // Jobs are built when queued, so the file may have changed since, e.g. an earlier job
+        // for the same video already replaced it. stat follows symlinks, like the queued size.
+        var info = stat()
+        guard stat(job.input, &info) == 0 else {
+            return failed(job, "The file was moved or deleted before it could be compressed.")
+        }
+        guard info.st_size == job.originalSize else {
+            return failed(job, "Skipped \u{2014} the file changed after it was queued.")
+        }
 
         DispatchQueue.main.sync {
             self.state.job = job
@@ -594,7 +605,7 @@ class AppController: NSObject, NSApplicationDelegate {
             }
         }
 
-        return finish(job)
+        return finish(job, keepWorkDir: &keepWorkDir)
     }
 
     /// Runs one ffmpeg pass; returns an error message, or nil on success.
@@ -681,7 +692,7 @@ class AppController: NSObject, NSApplicationDelegate {
         return nil
     }
 
-    private func finish(_ job: CompressConfig) -> JobResult {
+    private func finish(_ job: CompressConfig, keepWorkDir: inout Bool) -> JobResult {
         let fm = FileManager.default
 
         guard let attrs = try? fm.attributesOfItem(atPath: job.output),
@@ -700,9 +711,12 @@ class AppController: NSObject, NSApplicationDelegate {
 
         var destination = job.finalPath
         var note: String?
+        var originalTrashed = false
+        var trashedURL: NSURL?
         if job.trashOriginal {
             do {
-                try fm.trashItem(at: URL(fileURLWithPath: job.input), resultingItemURL: nil)
+                try fm.trashItem(at: URL(fileURLWithPath: job.input), resultingItemURL: &trashedURL)
+                originalTrashed = true
             } catch {
                 // Never replace an original that didn't make it to the Trash
                 destination = job.keepPath
@@ -714,7 +728,18 @@ class AppController: NSObject, NSApplicationDelegate {
         do {
             try fm.moveItem(atPath: job.output, toPath: destination)
         } catch {
-            return failed(job, "Failed to save: \(error.localizedDescription)")
+            let reason = error.localizedDescription
+            if putBack(trashedURL, to: job.input) {
+                return failed(job, "Couldn\u{2019}t save the compressed file, so the original was left in place. \(reason)")
+            }
+            // The work dir now holds the only compressed copy. Keep it, and clear currentJob
+            // so closing the overlay doesn't delete it either.
+            keepWorkDir = true
+            processLock.lock()
+            currentJob = nil
+            processLock.unlock()
+            let original = originalTrashed ? " The original is in the Trash." : ""
+            return failed(job, "Couldn\u{2019}t save the compressed file.\(original) The compressed copy is at \(job.output). \(reason)")
         }
         _ = "true".withCString { setxattr(destination, "com.mediacompressor.compressed", $0, 4, 0, 0) }
 
@@ -725,6 +750,17 @@ class AppController: NSObject, NSApplicationDelegate {
     private func failed(_ job: CompressConfig, _ message: String) -> JobResult {
         JobResult(filename: job.filename, outcome: .failed(message), originalSize: job.originalSize,
                   compressedSize: job.originalSize, finalPath: nil, note: nil)
+    }
+
+    /// Moves a trashed original back to where it was; returns whether that worked.
+    private func putBack(_ trashedURL: NSURL?, to path: String) -> Bool {
+        guard let trashedURL = trashedURL as URL? else { return false }
+        do {
+            try FileManager.default.moveItem(at: trashedURL, to: URL(fileURLWithPath: path))
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// "clip.mp4" -> "clip 2.mp4" when taken, so an existing file is never replaced.
