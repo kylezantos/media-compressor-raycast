@@ -1,5 +1,11 @@
 import { execFile } from "child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "fs";
 import { rm } from "fs/promises";
 import { promisify } from "util";
 import {
@@ -174,17 +180,26 @@ JOBS=$(( $(/usr/sbin/sysctl -n hw.ncpu) / 2 ))
 [ "$JOBS" -lt 1 ] && JOBS=1
 [ "$JOBS" -gt 6 ] && JOBS=6
 
+# Succeeds only if the original actually left its path
 trash_file() {
     if [ -x /usr/bin/trash ]; then
-        /usr/bin/trash "$1" 2>/dev/null && return 0
+        /usr/bin/trash "$1" 2>/dev/null && [ ! -e "$1" ] && return 0
     fi
     # Before macOS 15 there is no trash command; move it into the user's Trash
-    local name
+    # under a name nothing else is using, and never overwrite what's there
+    local name dest
     name=$(basename "$1")
-    [ -e "$HOME/.Trash/$name" ] && name="$(date +%s)-$name"
-    mv "$1" "$HOME/.Trash/$name" 2>/dev/null
+    dest="$HOME/.Trash/$name"
+    while [ -e "$dest" ] || [ -L "$dest" ]; do
+        dest="$HOME/.Trash/$(date +%s)-$$-$RANDOM-$name"
+    done
+    mv -n "$1" "$dest" 2>/dev/null
+    [ ! -e "$1" ]
 }
 
+# Returns non-zero only when the file should be tried again on a later run
+# (original couldn't be trashed, tool not installed). A file the tool can't
+# handle is marked like one that didn't get smaller, so it isn't retried forever.
 compress_one() {
     local IMG="$1"
     local MARKED
@@ -207,9 +222,10 @@ compress_one() {
     local ORIG_SIZE EXT WORK OUT
     ORIG_SIZE=$(stat -f%z "$IMG" 2>/dev/null) || return 0
     EXT=$(echo "\${IMG##*.}" | tr '[:upper:]' '[:lower:]')
-    WORK=$(mktemp -d "\${TMPDIR:-/tmp}/mediacomp.XXXXXX") || return 0
+    WORK=$(mktemp -d "\${TMPDIR:-/tmp}/mediacomp.XXXXXX") || return 1
     OUT="$WORK/out.$EXT"
 
+    local MISSING=""
     case "$EXT" in
         png)
             local QUANTIZED=false
@@ -226,16 +242,31 @@ compress_one() {
             fi
             ;;
         webp)
-            # shellcheck disable=SC2086
-            command -v cwebp &>/dev/null && cwebp -quiet -mt -metadata none $WEBP_ARGS "$IMG" -o "$OUT" 2>/dev/null
+            if command -v cwebp &>/dev/null; then
+                # A failed run (e.g. an animated WebP) leaves no usable output
+                # shellcheck disable=SC2086
+                cwebp -quiet -mt -metadata none $WEBP_ARGS "$IMG" -o "$OUT" 2>/dev/null || rm -f "$OUT"
+            else
+                MISSING=cwebp
+            fi
             ;;
         gif)
-            # shellcheck disable=SC2086
-            command -v gifsicle &>/dev/null && gifsicle -O3 --no-comments --no-names $GIF_LOSSY -o "$OUT" "$IMG" 2>/dev/null
+            if command -v gifsicle &>/dev/null; then
+                # shellcheck disable=SC2086
+                gifsicle -O3 --no-comments --no-names $GIF_LOSSY -o "$OUT" "$IMG" 2>/dev/null || rm -f "$OUT"
+            else
+                MISSING=gifsicle
+            fi
             ;;
     esac
 
-    local NEW_SIZE
+    if [ -n "$MISSING" ]; then
+        echo "$(date '+%F %T'): Skipped $(basename "$IMG"): $MISSING isn't installed" >&2
+        rm -rf "$WORK"
+        return 1
+    fi
+
+    local NEW_SIZE STATUS=0
     NEW_SIZE=$(stat -f%z "$OUT" 2>/dev/null || echo 0)
     if [ "$NEW_SIZE" -gt 0 ] && [ "$NEW_SIZE" -lt "$ORIG_SIZE" ]; then
         # Never replace an original that didn't make it to the Trash
@@ -244,12 +275,15 @@ compress_one() {
             xattr -w "$XATTR_KEY" true "$IMG" 2>/dev/null || true
             echo "$(date '+%F %T'): Compressed $(basename "$IMG"): $((ORIG_SIZE / 1024))KB -> $((NEW_SIZE / 1024))KB (-$(( (ORIG_SIZE - NEW_SIZE) * 100 / ORIG_SIZE ))%)"
         else
-            echo "$(date '+%F %T'): Skipped $(basename "$IMG"): couldn't move the original to the Trash" >&2
+            echo "$(date '+%F %T'): Skipped $(basename "$IMG"): couldn't move the original to the Trash, will retry" >&2
+            STATUS=1
         fi
-    elif [ "$NEW_SIZE" -gt 0 ]; then
+    else
+        # Not smaller, or the tool couldn't process it: leave it as is for good
         xattr -w "$XATTR_KEY" true "$IMG" 2>/dev/null || true
     fi
     rm -rf "$WORK"
+    return $STATUS
 }
 export -f compress_one trash_file
 
@@ -272,8 +306,15 @@ ${qualityCases()}
         touch "$STAMP.next"
         OUTPUT=$(find "$FOLDER" -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.gif' \\) \${NEWER[@]+"\${NEWER[@]}"} -print0 \\
             | xargs -0 -n 1 -P "$JOBS" "$BASH" -c 'compress_one "$1"' _)
-        mv "$STAMP.next" "$STAMP"
+        PASS_STATUS=$?
         [ -n "$OUTPUT" ] && echo "$OUTPUT"
+        if [ "$PASS_STATUS" -ne 0 ]; then
+            # Some file needs another try: keep the old stamp so the next run
+            # looks at it again, and stop here instead of spinning on it
+            rm -f "$STAMP.next"
+            break
+        fi
+        mv "$STAMP.next" "$STAMP"
         echo "$OUTPUT" | grep -q ': Compressed ' || break
     done
 done
@@ -282,9 +323,30 @@ done
 
 export function installWatchScript(watchers: WatchedFolder[] = loadWatchers()) {
   ensureConfigDir();
-  writeFileSync(getScriptPath(), generateWatchScript(watchers), {
-    mode: 0o755,
-  });
+  // Write a new file and swap it in: bash reads a script as it runs, so
+  // rewriting it in place could hand a running watcher half of each version
+  const scriptPath = getScriptPath();
+  const tempPath = `${scriptPath}.${process.pid}.tmp`;
+  writeFileSync(tempPath, generateWatchScript(watchers), { mode: 0o755 });
+  renameSync(tempPath, scriptPath);
+}
+
+/**
+ * Rewrites the watch script if it's out of date, e.g. after an extension
+ * update. launchd runs it by path, so no reload is needed.
+ */
+export function syncWatchScript(): boolean {
+  const watchers = loadWatchers();
+  if (watchers.length === 0) return false;
+  const scriptPath = getScriptPath();
+  if (
+    existsSync(scriptPath) &&
+    readFileSync(scriptPath, "utf-8") === generateWatchScript(watchers)
+  ) {
+    return false;
+  }
+  installWatchScript(watchers);
+  return true;
 }
 
 async function updateLaunchAgent(watchers: WatchedFolder[]): Promise<void> {

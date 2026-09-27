@@ -19,6 +19,7 @@ import {
   isWatcherRunning,
   WatchedFolder,
   installWatchScript,
+  syncWatchScript,
 } from "./lib/watcher";
 import { ImageQualityPreset } from "./lib/constants";
 import { hasImageTools } from "./lib/tools";
@@ -110,6 +111,20 @@ export default function ManageWatchers() {
 
   // Checked once per refresh instead of on every render
   useEffect(refresh, [refresh]);
+
+  // Folders added before an update keep running the old watch script until
+  // it's rewritten, so bring it up to date whenever this command opens
+  useEffect(() => {
+    try {
+      syncWatchScript();
+    } catch (err) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Couldn't update the watch script",
+        message: String(err),
+      });
+    }
+  }, []);
 
   async function handleRemove(path: string) {
     if (
