@@ -19,7 +19,14 @@ declare namespace Preferences {
   /** Preferences accessible in the `compress` command */
   export type Compress = ExtensionPreferences & {}
   /** Preferences accessible in the `compress-quick` command */
-  export type CompressQuick = ExtensionPreferences & {}
+  export type CompressQuick = ExtensionPreferences & {
+  /** Image Quality - Quality Quick Compress uses for images */
+  "quickImageQuality": "lossless" | "high" | "medium" | "low",
+  /** Video Codec - Codec Quick Compress uses for videos */
+  "quickVideoCodec": "h264" | "h265" | "av1",
+  /** Video Encode Speed - Fast uses the hardware encoder: about 3x faster, but larger files */
+  "quickVideoSpeed": "fast" | "balanced" | "quality"
+}
   /** Preferences accessible in the `compress-folder` command */
   export type CompressFolder = ExtensionPreferences & {}
   /** Preferences accessible in the `manage-watchers` command */

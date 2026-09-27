@@ -2,6 +2,7 @@ import {
   showHUD,
   showToast,
   Toast,
+  getPreferenceValues,
   getSelectedFinderItems,
 } from "@raycast/api";
 import { extname } from "path";
@@ -9,7 +10,6 @@ import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
   VideoCompressOptions,
-  getPrefs,
   formatBytes,
 } from "./lib/constants";
 import { compressImages, summarizeImages } from "./lib/image-compress";
@@ -22,7 +22,7 @@ import {
 } from "./lib/tools";
 
 export default async function CompressQuick() {
-  const prefs = getPrefs();
+  const prefs = getPreferenceValues<Preferences.CompressQuick>();
 
   let items: { path: string }[];
   try {
@@ -60,7 +60,7 @@ export default async function CompressQuick() {
 
     const results = await compressImages(
       images,
-      "high",
+      prefs.quickImageQuality,
       prefs.trashOriginals,
       (done, total) => {
         toast.message = `${done}/${total}`;
@@ -85,9 +85,9 @@ export default async function CompressQuick() {
     const videoOptions: VideoCompressOptions = {
       mode: "quality",
       quality: "high",
-      codec: "h265",
+      codec: prefs.quickVideoCodec,
       resolution: "original",
-      speed: "balanced",
+      speed: prefs.quickVideoSpeed,
       audioMode: "smart",
       trashOriginal: prefs.trashOriginals,
     };

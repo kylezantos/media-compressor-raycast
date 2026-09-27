@@ -20,8 +20,80 @@
     {
       "name": "compress-quick",
       "title": "Quick Compress",
-      "description": "Compress selected files instantly with default settings",
-      "mode": "no-view"
+      "description": "Compress selected files instantly with your Quick Compress defaults",
+      "mode": "no-view",
+      "preferences": [
+        {
+          "name": "quickImageQuality",
+          "title": "Image Quality",
+          "description": "Quality Quick Compress uses for images",
+          "type": "dropdown",
+          "required": false,
+          "default": "high",
+          "data": [
+            {
+              "title": "Lossless",
+              "value": "lossless"
+            },
+            {
+              "title": "High",
+              "value": "high"
+            },
+            {
+              "title": "Medium",
+              "value": "medium"
+            },
+            {
+              "title": "Low",
+              "value": "low"
+            }
+          ]
+        },
+        {
+          "name": "quickVideoCodec",
+          "title": "Video Codec",
+          "description": "Codec Quick Compress uses for videos",
+          "type": "dropdown",
+          "required": false,
+          "default": "h265",
+          "data": [
+            {
+              "title": "H.264",
+              "value": "h264"
+            },
+            {
+              "title": "H.265",
+              "value": "h265"
+            },
+            {
+              "title": "AV1",
+              "value": "av1"
+            }
+          ]
+        },
+        {
+          "name": "quickVideoSpeed",
+          "title": "Video Encode Speed",
+          "description": "Fast uses the hardware encoder: about 3x faster, but larger files",
+          "type": "dropdown",
+          "required": false,
+          "default": "balanced",
+          "data": [
+            {
+              "title": "Fast",
+              "value": "fast"
+            },
+            {
+              "title": "Balanced",
+              "value": "balanced"
+            },
+            {
+              "title": "Thorough",
+              "value": "quality"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "compress-folder",
