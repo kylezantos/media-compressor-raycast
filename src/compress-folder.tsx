@@ -18,8 +18,8 @@ import {
   getPrefs,
   formatBytes,
 } from "./lib/constants";
-import { compressImage } from "./lib/image-compress";
-import { hasImageTools, ensureImageTools } from "./lib/tools";
+import { compressImages } from "./lib/image-compress";
+import { ensureImageTools } from "./lib/tools";
 
 function ResultsView({ results }: { results: ImageCompressionResult[] }) {
   const totalOriginal = results.reduce((sum, r) => sum + r.originalSize, 0);
@@ -83,11 +83,6 @@ export default function CompressFolder() {
     imageQuality: string;
     trashOriginals: boolean;
   }) {
-    if (!hasImageTools()) {
-      await ensureImageTools();
-      return;
-    }
-
     const folderPath = values.folder?.[0];
     if (!folderPath) {
       await showToast({
@@ -123,18 +118,26 @@ export default function CompressFolder() {
       return;
     }
 
+    const ready = await ensureImageTools(files);
+    if (!ready) {
+      setIsLoading(false);
+      return;
+    }
+
     const toast = await showToast({
       style: Toast.Style.Animated,
       title: `Compressing ${files.length} images...`,
     });
 
     const quality = (values.imageQuality || "high") as ImageQualityPreset;
-    const results: ImageCompressionResult[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      toast.message = `${i + 1}/${files.length}: ${files[i].split("/").pop()}`;
-      results.push(compressImage(files[i], quality, values.trashOriginals));
-    }
+    const results = await compressImages(
+      files,
+      quality,
+      values.trashOriginals,
+      (done, total) => {
+        toast.message = `${done}/${total}`;
+      },
+    );
 
     toast.hide();
     setIsLoading(false);
@@ -189,6 +192,7 @@ export default function CompressFolder() {
         id="trashOriginals"
         label="Move originals to Trash"
         defaultValue={prefs.trashOriginals}
+        info="When off, originals are kept and the compressed copy is saved beside them as name-compressed. When on, originals go to the macOS Trash."
       />
     </Form>
   );

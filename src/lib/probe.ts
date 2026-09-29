@@ -1,26 +1,34 @@
-import { execFileSync } from "child_process";
-import { statSync } from "fs";
+import { execFile } from "child_process";
+import { stat } from "fs/promises";
+import { promisify } from "util";
 import { VideoInfo } from "./constants";
 import { getToolPath, ENV } from "./tools";
+
+const run = promisify(execFile);
 
 export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
   const ffprobe = getToolPath("ffprobe");
 
-  const output = execFileSync(
-    ffprobe,
-    [
-      "-v",
-      "quiet",
-      "-print_format",
-      "json",
-      "-show_format",
-      "-show_streams",
-      filePath,
-    ],
-    { env: ENV, timeout: 30_000 },
-  ).toString();
+  let stdout: string;
+  try {
+    ({ stdout } = await run(
+      ffprobe,
+      [
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
+        filePath,
+      ],
+      { env: ENV, timeout: 30_000 },
+    ));
+  } catch {
+    throw new Error("Not a readable video file.");
+  }
 
-  const data = JSON.parse(output);
+  const data = JSON.parse(stdout);
   const videoStream = data.streams?.find(
     (s: { codec_type: string }) => s.codec_type === "video",
   );
@@ -41,6 +49,6 @@ export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
     height: videoStream?.height || 0,
     videoCodec: videoStream?.codec_name || "unknown",
     audioCodec: audioStream?.codec_name || "unknown",
-    size: statSync(filePath).size,
+    size: (await stat(filePath)).size,
   };
 }

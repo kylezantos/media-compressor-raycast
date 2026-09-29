@@ -11,7 +11,7 @@ import {
   useNavigation,
   Form,
 } from "@raycast/api";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   loadWatchers,
   addWatcher,
@@ -19,6 +19,7 @@ import {
   isWatcherRunning,
   WatchedFolder,
   installWatchScript,
+  syncWatchScript,
 } from "./lib/watcher";
 import { ImageQualityPreset } from "./lib/constants";
 import { hasImageTools } from "./lib/tools";
@@ -46,7 +47,7 @@ function AddWatcherForm({ onAdd }: { onAdd: () => void }) {
     }
 
     try {
-      addWatcher(folderPath, values.mode as ImageQualityPreset);
+      await addWatcher(folderPath, values.mode as ImageQualityPreset);
       await showToast({
         style: Toast.Style.Success,
         title: "Folder added",
@@ -101,10 +102,28 @@ const MODE_COLORS: Record<string, Color> = {
 
 export default function ManageWatchers() {
   const [watchers, setWatchers] = useState<WatchedFolder[]>(loadWatchers);
-  const running = isWatcherRunning();
+  const [running, setRunning] = useState<boolean>();
 
   const refresh = useCallback(() => {
     setWatchers(loadWatchers());
+    isWatcherRunning().then(setRunning);
+  }, []);
+
+  // Checked once per refresh instead of on every render
+  useEffect(refresh, [refresh]);
+
+  // Folders added before an update keep running the old watch script until
+  // it's rewritten, so bring it up to date whenever this command opens
+  useEffect(() => {
+    try {
+      syncWatchScript();
+    } catch (err) {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Couldn't update the watch script",
+        message: String(err),
+      });
+    }
   }, []);
 
   async function handleRemove(path: string) {
@@ -118,7 +137,7 @@ export default function ManageWatchers() {
         },
       })
     ) {
-      removeWatcher(path);
+      await removeWatcher(path);
       refresh();
       await showToast({ style: Toast.Style.Success, title: "Folder removed" });
     }
@@ -155,7 +174,13 @@ export default function ManageWatchers() {
     >
       <List.Section
         title="Watch Folders (Images)"
-        subtitle={running ? "Watcher active" : "No watcher"}
+        subtitle={
+          running === undefined
+            ? undefined
+            : running
+              ? "Watcher active"
+              : "No watcher"
+        }
       >
         {watchers.length === 0 ? (
           <List.EmptyView

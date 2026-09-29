@@ -2,15 +2,17 @@ import { showHUD, showToast, Toast } from "@raycast/api";
 import { installAllTools } from "./lib/tools";
 
 export default async function InstallTools() {
-  await showToast({
+  const toast = await showToast({
     style: Toast.Style.Animated,
     title: "Installing compression tools...",
   });
 
   try {
-    await installAllTools();
+    await installAllTools((step) => {
+      toast.message = step;
+    });
     await showHUD(
-      "Installed: pngquant, oxipng, jpegoptim, ffmpeg, compress-overlay",
+      "Installed: pngquant, oxipng, jpegoptim, cwebp, gifsicle, ffmpeg, compress-overlay",
     );
   } catch (err) {
     await showToast({

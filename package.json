@@ -10,6 +10,9 @@
     "System"
   ],
   "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
   "commands": [
     {
       "name": "compress",
@@ -20,8 +23,80 @@
     {
       "name": "compress-quick",
       "title": "Quick Compress",
-      "description": "Compress selected files instantly with default settings",
-      "mode": "no-view"
+      "description": "Compress selected files instantly with your Quick Compress defaults",
+      "mode": "no-view",
+      "preferences": [
+        {
+          "name": "quickImageQuality",
+          "title": "Image Quality",
+          "description": "Quality Quick Compress uses for images",
+          "type": "dropdown",
+          "required": false,
+          "default": "high",
+          "data": [
+            {
+              "title": "Lossless",
+              "value": "lossless"
+            },
+            {
+              "title": "High",
+              "value": "high"
+            },
+            {
+              "title": "Medium",
+              "value": "medium"
+            },
+            {
+              "title": "Low",
+              "value": "low"
+            }
+          ]
+        },
+        {
+          "name": "quickVideoCodec",
+          "title": "Video Codec",
+          "description": "Codec Quick Compress uses for videos",
+          "type": "dropdown",
+          "required": false,
+          "default": "h265",
+          "data": [
+            {
+              "title": "H.264",
+              "value": "h264"
+            },
+            {
+              "title": "H.265",
+              "value": "h265"
+            },
+            {
+              "title": "AV1",
+              "value": "av1"
+            }
+          ]
+        },
+        {
+          "name": "quickVideoSpeed",
+          "title": "Video Encode Speed",
+          "description": "Fast uses the hardware encoder: about 3x faster, but larger files",
+          "type": "dropdown",
+          "required": false,
+          "default": "balanced",
+          "data": [
+            {
+              "title": "Fast",
+              "value": "fast"
+            },
+            {
+              "title": "Balanced",
+              "value": "balanced"
+            },
+            {
+              "title": "Thorough",
+              "value": "quality"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "compress-folder",
@@ -38,7 +113,7 @@
     {
       "name": "install-tools",
       "title": "Install Compression Tools",
-      "description": "Install image tools (pngquant, oxipng, jpegoptim) and video tools (FFmpeg)",
+      "description": "Install image tools (pngquant, oxipng, jpegoptim, cwebp, gifsicle) and video tools (FFmpeg)",
       "mode": "no-view"
     }
   ],
@@ -46,7 +121,7 @@
     {
       "name": "trashOriginals",
       "title": "Trash Originals",
-      "description": "Default: move originals to Trash after compression (can be overridden per operation)",
+      "description": "Default for the Move originals to Trash checkbox. On: originals go to the Trash and the compressed file takes their place. Off: originals are kept and the compressed copy is saved beside them.",
       "type": "checkbox",
       "required": false,
       "default": true,
@@ -54,13 +129,12 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.104.19",
-    "@raycast/utils": "^2.2.5"
+    "@raycast/api": "^2.5.2"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.1.1",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.0.2",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
     "eslint": "^9.16.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2"
@@ -70,7 +144,6 @@
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "install:raycast": "ray build -e dist -o \"$HOME/.config/raycast/extensions/media-compressor\"",
-    "install:raycast-beta": "ray build -e dist -o \"$HOME/.config/raycast-x/extensions/media-compressor\"",
     "lint": "ray lint",
     "prepublishOnly": "echo \"Error: no publish\" && exit 1",
     "publish": "npx @raycast/api@latest publish"

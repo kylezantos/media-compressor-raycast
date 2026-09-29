@@ -1,18 +1,17 @@
 import { getPreferenceValues } from "@raycast/api";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
 import { join } from "path";
 
 // ── File Extensions ──
 
+// Only formats with a real in-format compressor. TIFF/BMP were listed before
+// but only ever got copied, so they're no longer offered.
 export const IMAGE_EXTENSIONS = new Set([
   ".png",
   ".jpg",
   ".jpeg",
   ".webp",
   ".gif",
-  ".tiff",
-  ".tif",
-  ".bmp",
 ]);
 
 export const VIDEO_EXTENSIONS = new Set([
@@ -44,14 +43,34 @@ export interface ImageCompressionResult {
   error?: string;
 }
 
+// webpQuality is cwebp -q (lossless uses -lossless instead); gifLossy is
+// gifsicle --lossy (0 = lossless optimization only)
 export const IMAGE_QUALITY_SETTINGS: Record<
   ImageQualityPreset,
-  { pngMin: number; pngMax: number; jpegMax: number }
+  {
+    pngMin: number;
+    pngMax: number;
+    jpegMax: number;
+    webpQuality: number;
+    gifLossy: number;
+  }
 > = {
-  lossless: { pngMin: 100, pngMax: 100, jpegMax: 100 },
-  high: { pngMin: 85, pngMax: 100, jpegMax: 90 },
-  medium: { pngMin: 70, pngMax: 90, jpegMax: 80 },
-  low: { pngMin: 50, pngMax: 80, jpegMax: 70 },
+  lossless: {
+    pngMin: 100,
+    pngMax: 100,
+    jpegMax: 100,
+    webpQuality: 100,
+    gifLossy: 0,
+  },
+  high: { pngMin: 85, pngMax: 100, jpegMax: 90, webpQuality: 90, gifLossy: 20 },
+  medium: {
+    pngMin: 70,
+    pngMax: 90,
+    jpegMax: 80,
+    webpQuality: 80,
+    gifLossy: 60,
+  },
+  low: { pngMin: 50, pngMax: 80, jpegMax: 70, webpQuality: 70, gifLossy: 100 },
 };
 
 // ── Video Types ──
@@ -90,10 +109,15 @@ export interface PassConfig {
   label: string;
 }
 
+// One queued video job, read by the overlay (assets/CompressOverlay.swift)
 export interface CompressConfig {
   input: string;
   output: string;
+  // Where the result goes; keepPath is used instead if trashing the original fails
   finalPath: string;
+  keepPath: string;
+  // Holds the output and pass logs; the overlay deletes it after the job
+  workDir: string;
   duration: number;
   originalSize: number;
   filename: string;
@@ -113,6 +137,21 @@ export const CODEC_LIBS: Record<Codec, string> = {
   h264: "libx264",
   h265: "libx265",
   av1: "libsvtav1",
+};
+
+// "Fast" uses the Apple Silicon media engine: ~3x faster than libx265, but
+// files come out several times larger at similar quality. No AV1 encoder.
+export const HW_ENCODERS: Partial<Record<Codec, string>> = {
+  h264: "h264_videotoolbox",
+  h265: "hevc_videotoolbox",
+};
+
+// VideoToolbox -q:v (1-100, higher = better) per quality preset
+export const HW_QUALITY: Record<VideoQualityPreset, number> = {
+  lossless: 75,
+  high: 65,
+  medium: 55,
+  low: 45,
 };
 
 export const SPEED_PRESETS: Record<Codec, Record<Speed, string>> = {
@@ -139,6 +178,9 @@ export function getPrefs(): Preferences {
 
 // ── Paths ──
 
+export const TEMP_DIR = join(tmpdir(), "media-compressor");
+// Video jobs waiting for the overlay; one overlay drains it in order
+export const QUEUE_DIR = join(TEMP_DIR, "queue");
 export const CONFIG_DIR = join(homedir(), ".config", "media-compressor");
 export const WATCHERS_FILE = join(CONFIG_DIR, "watchers.json");
 export const OVERLAY_BIN = join(CONFIG_DIR, "compress-overlay");

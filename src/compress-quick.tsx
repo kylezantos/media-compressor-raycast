@@ -2,27 +2,22 @@ import {
   showHUD,
   showToast,
   Toast,
+  getPreferenceValues,
   getSelectedFinderItems,
 } from "@raycast/api";
-import { extname, basename } from "path";
+import { extname } from "path";
 import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
   VideoCompressOptions,
-  getPrefs,
   formatBytes,
 } from "./lib/constants";
-import { compressImage } from "./lib/image-compress";
-import { launchVideoCompression } from "./lib/video-compress";
-import {
-  ensureImageTools,
-  ensureVideoTools,
-  hasImageTools,
-  hasVideoTools,
-} from "./lib/tools";
+import { compressImages, summarizeImages } from "./lib/image-compress";
+import { queueVideos } from "./lib/video-compress";
+import { ensureImageTools, ensureVideoTools, hasVideoTools } from "./lib/tools";
 
 export default async function CompressQuick() {
-  const prefs = getPrefs();
+  const prefs = getPreferenceValues<Preferences.CompressQuick>();
 
   let items: { path: string }[];
   try {
@@ -48,37 +43,29 @@ export default async function CompressQuick() {
 
   // ── Images ──
   if (images.length > 0) {
-    if (!hasImageTools()) {
-      await ensureImageTools();
-      return;
-    }
+    const ready = await ensureImageTools(images);
+    if (!ready) return;
 
     const toast = await showToast({
       style: Toast.Style.Animated,
       title: `Compressing ${images.length} image${images.length > 1 ? "s" : ""}...`,
     });
 
-    let totalSaved = 0;
-    let compressed = 0;
-    let skipped = 0;
-
-    for (let i = 0; i < images.length; i++) {
-      toast.message = `${i + 1}/${images.length}: ${basename(images[i])}`;
-      const result = compressImage(images[i], "high", prefs.trashOriginals);
-      if (result.error || result.skipped) {
-        skipped++;
-      } else {
-        compressed++;
-        totalSaved += result.saved;
-      }
-    }
+    const results = await compressImages(
+      images,
+      prefs.quickImageQuality,
+      prefs.trashOriginals,
+      (done, total) => {
+        toast.message = `${done}/${total}`;
+      },
+    );
+    const { compressed, skipped, failed, saved } = summarizeImages(results);
 
     toast.hide();
     if (compressed > 0)
-      resultParts.push(
-        `${compressed} images, saved ${formatBytes(totalSaved)}`,
-      );
+      resultParts.push(`${compressed} images, saved ${formatBytes(saved)}`);
     if (skipped > 0) resultParts.push(`${skipped} already optimal`);
+    if (failed > 0) resultParts.push(`${failed} failed`);
   }
 
   // ── Videos ──
@@ -91,29 +78,22 @@ export default async function CompressQuick() {
     const videoOptions: VideoCompressOptions = {
       mode: "quality",
       quality: "high",
-      codec: "h265",
+      codec: prefs.quickVideoCodec,
       resolution: "original",
-      speed: "balanced",
+      speed: prefs.quickVideoSpeed,
       audioMode: "smart",
       trashOriginal: prefs.trashOriginals,
     };
 
-    for (const vid of videos) {
-      try {
-        await launchVideoCompression(vid, videoOptions);
-      } catch (err) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: `Failed: ${basename(vid)}`,
-          message: err instanceof Error ? err.message : String(err),
-        });
-        return;
-      }
-    }
-
-    resultParts.push(
-      `${videos.length} video${videos.length > 1 ? "s" : ""} compressing...`,
-    );
+    const queue = await queueVideos(videos, videoOptions);
+    if (!queue) return;
+    const { queued, failed } = queue;
+    if (queued > 0)
+      resultParts.push(
+        `${queued} video${queued > 1 ? "s" : ""} compressing...`,
+      );
+    if (failed.length > 0)
+      resultParts.push(`${failed.length} couldn't be read`);
   }
 
   await showHUD(resultParts.join(" · ") || "Done");
