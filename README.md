@@ -84,10 +84,10 @@ The overlay is compiled from `assets/CompressOverlay.swift` and rebuilds itself 
 
 | Preset | H.264 CRF | H.265 CRF | AV1 CRF | Fast (hardware quality) |
 |--------|-----------|-----------|---------|-------------------------|
-| Lossless | 18 | 20 | 23 | 75 |
-| High | 23 | 24 | 30 | 65 |
-| Medium | 28 | 28 | 38 | 55 |
-| Low | 32 | 32 | 45 | 45 |
+| Lossless | 18 | 20 | 23 | 85 |
+| High | 23 | 24 | 30 | 75 |
+| Medium | 28 | 28 | 38 | 65 |
+| Low | 32 | 32 | 45 | 55 |
 
 ## Watch Folders
 
