@@ -146,12 +146,14 @@ export const HW_ENCODERS: Partial<Record<Codec, string>> = {
   h265: "hevc_videotoolbox",
 };
 
-// VideoToolbox -q:v (1-100, higher = better) per quality preset
+// VideoToolbox -q:v (1-100, higher = better) per quality preset. VideoToolbox
+// looks softer than x264/x265 at the same nominal level, so these sit higher
+// than a straight CRF mapping would suggest; 65 for High visibly lost detail.
 export const HW_QUALITY: Record<VideoQualityPreset, number> = {
-  lossless: 75,
-  high: 65,
-  medium: 55,
-  low: 45,
+  lossless: 85,
+  high: 75,
+  medium: 65,
+  low: 55,
 };
 
 export const SPEED_PRESETS: Record<Codec, Record<Speed, string>> = {
